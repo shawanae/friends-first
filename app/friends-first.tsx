@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, FileDown, HeartHandshake, LockKeyhole, ShieldCheck, Trash2, UsersRound } from 'lucide-react';
+import { Check, FileDown, HeartHandshake, Info, LockKeyhole, ShieldCheck, Trash2, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -28,7 +28,9 @@ const modules = [
   ['Review & complete', 'Module 9', 'Review every response, make changes, and create your private PDF.'],
 ] as const;
 
-const raceOptions = ['American Indian or Alaska Native (A person having origins in any of the original peoples of North, Central, or South America and who maintains tribal affiliation or community attachment)', 'Asian', 'Black/African-American', 'Hispanic/Latino', 'Middle Eastern/North African', 'Multiracial', 'Native Hawaiian or Pacific Islander', 'White', 'Other'];
+const AMERICAN_INDIAN_LABEL = 'American Indian or Alaska Native';
+const AMERICAN_INDIAN_DESCRIPTION = 'A person having origins in any of the original peoples of North, Central, or South America and who maintains tribal affiliation or community attachment.';
+const raceOptions = [AMERICAN_INDIAN_LABEL, 'Asian', 'Black/African-American', 'Hispanic/Latino', 'Middle Eastern/North African', 'Multiracial', 'Native Hawaiian or Pacific Islander', 'White', 'Other'];
 const educationOptions = ['Less than High School', 'High School Diploma/GED', "Associate's Degree", "Bachelor's Degree", 'Master’s Degree', 'Professional or Doctorate Degree'];
 const religionOptions = ['Christian', 'Muslim', 'Jewish', 'Hindu', 'Buddhist', 'Sikh', 'Spiritual but not Religious', 'Agnostic', 'Atheist', 'Other'];
 const politicalOptions = ['Very Conservative', 'Conservative', 'Moderate', 'Liberal', 'Very Liberal', 'Leftist', 'Apolitical', 'Other'];
@@ -50,6 +52,17 @@ function Question({ title, hint, children }: { title: string; hint?: string; chi
   return <fieldset className="ff-question"><legend>{title}</legend>{hint && <p className="ff-hint">{hint}</p>}<div className="ff-options">{children}</div></fieldset>;
 }
 
+function OptionLabel({ option }: { option: string }) {
+  if (option !== AMERICAN_INDIAN_LABEL) return <span>{option}</span>;
+  return <span className="ff-option-copy">
+    <span>{option}</span>
+    <span className="ff-tooltip-trigger" tabIndex={0} aria-label={`${option}: ${AMERICAN_INDIAN_DESCRIPTION}`}>
+      <Info aria-hidden="true" />
+      <span className="ff-tooltip-bubble" role="tooltip">{AMERICAN_INDIAN_DESCRIPTION}</span>
+    </span>
+  </span>;
+}
+
 function Choices({ options, value, onChange, multi = false, max, exclusive }: { options: readonly string[]; value?: string | string[]; onChange: (value: string | string[]) => void; multi?: boolean; max?: number; exclusive?: string }) {
   const selected = Array.isArray(value) ? value : [];
   if (multi) return <div className="ff-choice-grid">{options.map(option => {
@@ -62,10 +75,10 @@ function Choices({ options, value, onChange, multi = false, max, exclusive }: { 
         if (max && withoutExclusive.length >= max) return;
         onChange([...withoutExclusive, option]);
       }} />
-      <span>{option}</span>
+      <OptionLabel option={option} />
     </label>;
   })}</div>;
-  return <RadioGroup value={typeof value === 'string' ? value : ''} onValueChange={onChange as (value: string) => void} className="ff-choice-grid">{options.map(option => <label className={`ff-choice ${value === option ? 'is-selected' : ''}`} key={option}><RadioGroupItem value={option} /><span>{option}</span></label>)}</RadioGroup>;
+  return <RadioGroup value={typeof value === 'string' ? value : ''} onValueChange={onChange as (value: string) => void} className="ff-choice-grid">{options.map(option => <label className={`ff-choice ${value === option ? 'is-selected' : ''}`} key={option}><RadioGroupItem value={option} /><OptionLabel option={option} /></label>)}</RadioGroup>;
 }
 
 function HeightFields({ prefix, answers, setAnswer }: { prefix: string; answers: Answers; setAnswer: (key: string, value: AnswerValue) => void }) {
