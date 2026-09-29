@@ -9,7 +9,6 @@ import {
   LockKeyhole,
   ShieldCheck,
   Trash2,
-  UsersRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -1344,7 +1343,6 @@ function ConsiderationScreen({
 export default function FriendsFirst() {
   const [step, setStep] = useState(0);
   const [substep, setSubstep] = useState(0);
-  const [furthest, setFurthest] = useState(0);
   const [answers, setAnswers] = useState<Answers>(blankAnswers);
   const [loaded, setLoaded] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -1435,7 +1433,6 @@ export default function FriendsFirst() {
     const next = Math.min(modules.length - 1, step + 1);
     setStep(next);
     setSubstep(0);
-    setFurthest((value) => Math.max(value, next));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const goBack = () => {
@@ -1491,7 +1488,6 @@ export default function FriendsFirst() {
     setAnswers(blankAnswers);
     setStep(0);
     setSubstep(0);
-    setFurthest(0);
     setShowValidation(false);
     setCompleted(false);
   };
@@ -1500,7 +1496,6 @@ export default function FriendsFirst() {
   const screenSections =
     step === 1 ? aboutScreens : step === 2 ? considerationScreens : null;
   const currentSection = screenSections?.[substep];
-  const sectionNames = screenSections ? [...new Set(screenSections)] : [];
 
   if (completed)
     return (
@@ -1545,84 +1540,15 @@ export default function FriendsFirst() {
   return (
     <main className="ff-shell">
       <ReviewSummary answers={answers} printable />
-      <aside className="ff-sidebar">
-        <a className="ff-brand" href="#friends-first-top">
-          <span>
-            <UsersRound />
-          </span>
-          <strong>Friends First</strong>
-        </a>
-        <div className="ff-sidebar-copy">
-          <p className="ff-kicker">Relationship reflection</p>
-          <h1>Start with what’s true.</h1>
-          <p>
-            A private space to understand your preferences, values, and
-            relationship priorities.
-          </p>
-        </div>
-        <nav aria-label="Survey modules">
-          {modules.map((module, index) => (
-            <button
-              type="button"
-              disabled={index > furthest}
-              onClick={() => {
-                setStep(index);
-                setSubstep(0);
-                setShowValidation(false);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={
-                index === step ? 'is-current' : index < step ? 'is-past' : ''
-              }
-              key={module[0]}
-            >
-              <span>
-                {index < step ? <Check /> : index === 0 ? '•' : index}
-              </span>
-              <div>
-                <strong>{module[0]}</strong>
-                <small>
-                  {index === step
-                    ? 'In progress'
-                    : index < step
-                      ? 'Available'
-                      : 'Upcoming'}
-                </small>
-              </div>
-            </button>
-          ))}
-        </nav>
-        <button
-          className="ff-clear-link"
-          type="button"
-          onClick={clearResponses}
-        >
-          <Trash2 /> Clear saved responses
-        </button>
-      </aside>
       <section className="ff-main" id="friends-first-top">
-        <header className="ff-mobile-header">
-          <a className="ff-brand" href="#friends-first-top">
-            <span>
-              <UsersRound />
-            </span>
-            <strong>Friends First</strong>
-          </a>
-          <button
-            className="ff-mobile-clear"
-            type="button"
-            onClick={clearResponses}
-          >
-            <Trash2 />
-            <span className="sr-only">Clear saved responses</span>
-          </button>
-        </header>
         <div className="ff-progress">
           <div>
             <span>
-              {step === 0 ? 'Welcome' : `Module ${step} of 9`}
-              {screenSections &&
-                ` · Question ${substep + 1} of ${screenSections.length}`}
+              {step === 0
+                ? 'Welcome'
+                : screenSections
+                  ? `Question ${substep + 1} of ${screenSections.length}`
+                  : 'Survey progress'}
             </span>
             <span>{Math.round((step / 9) * 100)}% complete</span>
           </div>
@@ -1630,24 +1556,8 @@ export default function FriendsFirst() {
         </div>
         <div className="ff-form">
           <header className="ff-heading">
-            <p className="ff-kicker">
-              {modules[step][1]}
-              {currentSection && ` · ${currentSection}`}
-            </p>
-            <h2>{modules[step][0]}</h2>
+            <h2>{currentSection || modules[step][0]}</h2>
             <p>{modules[step][2]}</p>
-            {screenSections && (
-              <div className="ff-section-trail" aria-label="Internal sections">
-                {sectionNames.map((name) => (
-                  <span
-                    className={name === currentSection ? 'is-current' : ''}
-                    key={name}
-                  >
-                    {name}
-                  </span>
-                ))}
-              </div>
-            )}
           </header>
 
           {step === 0 && (
