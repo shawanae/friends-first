@@ -1,6 +1,7 @@
-'use client';
-
+import FriendsFirst from './friends-first';
 import { useMemo, useState } from 'react';
+
+/* The original Pairwise implementation remains in Git history. */
 import { ArrowLeft, ArrowRight, Check, HeartHandshake, Minus, Plus, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -52,7 +53,7 @@ function Allocator({ items, value, onChange }: { items: string[]; value: Record<
   return <div className="allocator"><div className={`points-left ${total === 100 ? 'complete' : total > 100 ? 'over' : ''}`}><span>{total === 100 && <Check />}{total === 100 ? 'Perfectly balanced' : total > 100 ? `${total - 100} points over` : `${100 - total} points left`}</span><strong>{total}/100</strong></div>{items.map(item => <div className="trait-row" key={item}><span>{item}</span><div className="stepper"><button type="button" aria-label={`Subtract from ${item}`} onClick={() => adjust(item, -5)}><Minus /></button><Input aria-label={`${item} points`} type="number" min="0" max="100" value={value[item] || 0} onChange={e => onChange({ ...value, [item]: Math.max(0, Number(e.target.value) || 0) })} /><button type="button" aria-label={`Add to ${item}`} onClick={() => adjust(item, 5)}><Plus /></button></div></div>)}</div>;
 }
 
-export default function Home() {
+function PairwiseArchive() {
   const [step, setStep] = useState(0); const [submitted, setSubmitted] = useState(false);
   const [answers, setAnswers] = useState<Answers>({ selfPoints: {}, partnerPoints: {} });
   const setAnswer = (key: string, value: string | string[] | Record<string, number>) => setAnswers(a => ({ ...a, [key]: value }));
@@ -67,3 +68,5 @@ export default function Home() {
   {step===5&&<div className="section-stack"><Section title="Keep only five qualities" hint={`${(answers.keep5 as string[]||[]).length} of 5 selected`}><Choices options={partnerTraits} value={answers.keep5} onChange={v=>setAnswer('keep5',v)} multi max={5} /></Section><Section title="Keep only three of those" hint={`${(answers.keep3 as string[]||[]).length} of 3 selected`}><Choices options={(answers.keep5 as string[]||[])} value={answers.keep3} onChange={v=>setAnswer('keep3',v)} multi max={3} /></Section><Section title="If you had to keep only one"><Choices options={(answers.keep3 as string[]||[])} value={answers.keep1} onChange={v=>setAnswer('keep1',v)} /></Section><Section title="Select your five most important life values" hint={`${(answers.lifeValues as string[]||[]).length} of 5 selected`}><Choices options={values} value={answers.lifeValues} onChange={v=>setAnswer('lifeValues',v)} multi max={5} /></Section><Section title="Which three qualities would most likely make your ideal partner choose you?" hint={`${(answers.chooseMe as string[]||[]).length} of 3 selected`}><Choices options={traits} value={answers.chooseMe} onChange={v=>setAnswer('chooseMe',v)} multi max={3} /></Section></div>}
   <footer className="form-footer"><Button variant="outline" size="lg" onClick={()=>setStep(s=>Math.max(0,s-1))} disabled={step===0}><ArrowLeft /> Back</Button><div><span className="save-note"><Check /> Responses saved</span>{step<steps.length-1?<Button size="lg" disabled={!canContinue} onClick={()=>{setStep(s=>s+1);window.scrollTo({top:0,behavior:'smooth'});}}>Continue <ArrowRight /></Button>:<Button size="lg" disabled={!canContinue} onClick={()=>setSubmitted(true)}>Complete survey <Check /></Button>}</div></footer></div></section></main>;
 }
+
+export default FriendsFirst;

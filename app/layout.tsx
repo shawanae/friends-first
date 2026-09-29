@@ -13,18 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Pairwise — Relationship Reflection Survey',
-  description: 'A thoughtful, private survey about compatibility, values, and relationship priorities.',
+  title: 'Friends First — Relationship Reflection Survey',
+  description: 'A private relationship reflection about compatibility, values, preferences, and priorities.',
   openGraph: {
-    title: 'Pairwise — A thoughtful look at compatibility',
-    description: 'Reflect on values, preferences, and what matters most.',
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Pairwise relationship reflection survey' }],
+    title: 'Friends First — Start with what’s true',
+    description: 'A private relationship reflection about compatibility, values, and what matters most.',
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'Pairwise — A thoughtful look at compatibility',
-    description: 'Reflect on values, preferences, and what matters most.',
-    images: ['/og.png'],
+    card: 'summary',
+    title: 'Friends First — Start with what’s true',
+    description: 'A private relationship reflection about compatibility, values, and what matters most.',
   },
 };
 
