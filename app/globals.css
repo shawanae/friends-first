@@ -299,6 +299,9 @@
 .ff-about-theme .ff-choice-grid {
   grid-template-columns: 1fr;
 }
+.ff-about-theme .ff-choice-grid.ff-two-column {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .ff-about-theme .ff-choice-grid.ff-yes-no {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -570,6 +573,9 @@
   }
   .ff-about-theme .ff-about-section-title {
     font-size: 30px;
+  }
+  .ff-about-theme .ff-choice-grid.ff-two-column {
+    grid-template-columns: 1fr;
   }
 }
 

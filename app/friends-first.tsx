@@ -165,6 +165,7 @@ const lifeValues = [
   'Independence',
   'Community',
   'Creativity',
+  'Curiosity',
   'Security',
   'Service',
   'Wealth',
@@ -265,6 +266,7 @@ function Choices({
   max,
   exclusive,
   singleColumn = false,
+  twoColumn = false,
 }: {
   options: readonly string[];
   value?: AnswerValue;
@@ -273,6 +275,7 @@ function Choices({
   max?: number;
   exclusive?: string;
   singleColumn?: boolean;
+  twoColumn?: boolean;
 }) {
   const selected = Array.isArray(value) ? value : [];
   const isYesNo =
@@ -280,7 +283,7 @@ function Choices({
     options.length === 2 &&
     options.includes('Yes') &&
     options.includes('No');
-  const layoutClass = `ff-choice-grid ${singleColumn ? 'ff-single-column' : ''} ${isYesNo ? 'ff-yes-no' : ''}`;
+  const layoutClass = `ff-choice-grid ${singleColumn ? 'ff-single-column' : ''} ${twoColumn ? 'ff-two-column' : ''} ${isYesNo ? 'ff-yes-no' : ''}`;
   if (multi)
     return (
       <div className={layoutClass}>
@@ -1011,7 +1014,7 @@ function AboutYouScreen({
     </Question>,
     <Question
       key="life-values"
-      title="Select your five most important life values"
+      title="Below is a list of common life values. Select the five values that are most important to you and that most strongly influence how you live your life."
       hint={`${((answers.lifeValues as string[]) || []).length} of 5 selected`}
     >
       <Choices
@@ -1020,7 +1023,7 @@ function AboutYouScreen({
         onChange={(value) => setAnswer('lifeValues', value)}
         multi
         max={5}
-        singleColumn
+        twoColumn
       />
     </Question>,
     <Question key="children" title="Do you have children?">
