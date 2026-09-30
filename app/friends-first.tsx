@@ -1849,14 +1849,13 @@ export default function FriendsFirst() {
             <span>
               {step === 0
                 ? 'Privacy Notice'
-                : (step === 1 && aboutOverview) ||
-                    (step === 2 && considerationOverview)
-                  ? step === 1
-                    ? 'About you'
-                    : 'Consideration filters'
-                  : screenSections
-                    ? `Question ${currentSectionQuestion} of ${currentSectionScreens.length}`
-                    : 'Survey progress'}
+                : step === 1
+                  ? 'About You'
+                  : step === 2
+                    ? 'Considerations'
+                    : step === 3
+                      ? 'What Do You Bring?'
+                      : 'Survey progress'}
             </span>
             <span>{screenProgress}% complete</span>
           </div>
