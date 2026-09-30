@@ -57,18 +57,13 @@ const modules = [
     'Narrow your priorities from five traits to one.',
   ],
   [
-    'Core values',
-    'Module 7',
-    'Identify the values that most strongly guide your life.',
-  ],
-  [
     'Reciprocal thinking',
-    'Module 8',
+    'Module 7',
     'Consider what your ideal partner might value in you.',
   ],
   [
     'Review & complete',
-    'Module 9',
+    'Module 8',
     'Review every response, make changes, and create your private PDF.',
   ],
 ] as const;
@@ -448,6 +443,7 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
       ['cannabis', 'Cannabis use'],
       ['cannabisTypes', 'Cannabis forms'],
       ['exercise', 'Exercise habits'],
+      ['lifeValues', 'Five core values'],
       ['pets', 'Has pets'],
       ['petTypes', 'Pets'],
       ['petOther', 'Other pet'],
@@ -506,7 +502,6 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
       ['keep1', 'Single essential trait'],
     ],
   ],
-  ['Core values', [['lifeValues', 'Five core values']]],
   [
     'Reciprocal thinking',
     [['chooseMe', 'Three qualities an ideal partner might choose']],
@@ -613,6 +608,11 @@ function migrateSavedAnswers(saved: Answers) {
       );
     }
   }
+  if (Array.isArray(migrated.petTypes)) {
+    migrated.petTypes = (migrated.petTypes as string[]).map((value) =>
+      value === 'Reptiles' ? 'Reptile(s)' : value,
+    );
+  }
   if (!hasText(migrated.religion)) {
     if (
       migrated.agnosticAtheist === 'Agnostic' ||
@@ -636,6 +636,7 @@ const aboutScreens = [
   'Identity',
   'Identity',
   'Identity',
+  'Lifestyle',
   'Lifestyle',
   'Lifestyle',
   'Lifestyle',
@@ -723,6 +724,8 @@ function aboutScreenComplete(index: number, answers: Answers) {
       hasText(answers.nicotine) && nicotineOkay,
       hasText(answers.cannabis) && cannabisOkay,
       hasText(answers.exercise),
+      hasList(answers.lifeValues, 5) &&
+        (answers.lifeValues as string[]).length === 5,
       hasText(answers.children),
       hasText(answers.futureChildren),
       hasText(answers.pets) && petsOkay,
@@ -802,11 +805,6 @@ function moduleComplete(module: number, answers: Answers) {
       (answers.keep3 as string[]).includes(answers.keep1 as string)
     );
   if (module === 7)
-    return (
-      hasList(answers.lifeValues, 5) &&
-      (answers.lifeValues as string[]).length === 5
-    );
-  if (module === 8)
     return (
       hasList(answers.chooseMe, 3) &&
       (answers.chooseMe as string[]).length === 3
@@ -898,7 +896,7 @@ function AboutYouScreen({
       />
     </Question>,
     <div key="religion" className="ff-stack">
-      <Question title="How would you describe your religion and or spiritual practice?">
+      <Question title="How would you describe your religion, spiritual practice, and or worldview?">
         <Choices
           options={religionOptions}
           value={answers.religion}
@@ -1011,6 +1009,20 @@ function AboutYouScreen({
         singleColumn
       />
     </Question>,
+    <Question
+      key="life-values"
+      title="Select your five most important life values"
+      hint={`${((answers.lifeValues as string[]) || []).length} of 5 selected`}
+    >
+      <Choices
+        options={lifeValues}
+        value={answers.lifeValues}
+        onChange={(value) => setAnswer('lifeValues', value)}
+        multi
+        max={5}
+        singleColumn
+      />
+    </Question>,
     <Question key="children" title="Do you have children?">
       <Choices
         options={['Yes', 'No']}
@@ -1048,7 +1060,7 @@ function AboutYouScreen({
                 'Cat(s)',
                 'Bird(s)',
                 'Fish',
-                'Reptiles',
+                'Reptile(s)',
                 'Small mammals',
                 'Other',
               ]}
@@ -1526,7 +1538,7 @@ export default function FriendsFirst() {
       return considerationOverview
         ? moduleComplete(2, answers)
         : considerationScreenComplete(substep, answers);
-    if (step >= 3 && step <= 8) return moduleComplete(step, answers);
+    if (step >= 3 && step <= 7) return moduleComplete(step, answers);
     return true;
   }, [aboutOverview, answers, considerationOverview, step, substep]);
 
@@ -1645,7 +1657,7 @@ export default function FriendsFirst() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const completeSurvey = () => {
-    const incompleteModule = [1, 2, 3, 4, 5, 6, 7, 8].find(
+    const incompleteModule = [1, 2, 3, 4, 5, 6, 7].find(
       (module) => !moduleComplete(module, answers),
     );
     if (incompleteModule) {
@@ -1766,7 +1778,7 @@ export default function FriendsFirst() {
               considerationScreens.length) *
               100,
           )
-        : Math.round((step / 9) * 100);
+        : Math.round((step / 8) * 100);
 
   if (showHome)
     return (
@@ -1808,7 +1820,7 @@ export default function FriendsFirst() {
               variant="outline"
               onClick={() => {
                 setCompleted(false);
-                setStep(9);
+                setStep(8);
               }}
             >
               Review responses
@@ -2192,7 +2204,7 @@ export default function FriendsFirst() {
                         'Cat(s)',
                         'Bird(s)',
                         'Fish',
-                        'Reptiles',
+                        'Reptile(s)',
                         'Small mammals',
                         'Other',
                       ]}
@@ -2615,20 +2627,6 @@ export default function FriendsFirst() {
           )}
           {step === 7 && (
             <Question
-              title="Select your five most important life values"
-              hint={`${((answers.lifeValues as string[]) || []).length} of 5 selected`}
-            >
-              <Choices
-                options={lifeValues}
-                value={answers.lifeValues}
-                onChange={(value) => setAnswer('lifeValues', value)}
-                multi
-                max={5}
-              />
-            </Question>
-          )}
-          {step === 8 && (
-            <Question
               title="Which three qualities would most likely make your ideal partner choose you?"
               hint={`${((answers.chooseMe as string[]) || []).length} of 3 selected`}
             >
@@ -2641,7 +2639,7 @@ export default function FriendsFirst() {
               />
             </Question>
           )}
-          {step === 9 && (
+          {step === 8 && (
             <div className="ff-review-wrap">
               <div className="ff-review-toolbar">
                 <p>
@@ -2670,7 +2668,7 @@ export default function FriendsFirst() {
                 <Check />{' '}
                 {loaded ? 'Saved on this device' : 'Loading responses'}
               </span>
-              {step < 9 &&
+              {step < 8 &&
               !(step === 1 && aboutOverview && !canContinue) &&
               !(step === 2 && considerationOverview && !canContinue) ? (
                 <Button
@@ -2688,7 +2686,7 @@ export default function FriendsFirst() {
                     ? 'NEXT'
                     : 'Continue'}
                 </Button>
-              ) : step === 9 ? (
+              ) : step === 8 ? (
                 <Button size="lg" onClick={completeSurvey}>
                   Complete survey
                 </Button>
