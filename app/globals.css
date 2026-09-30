@@ -280,6 +280,18 @@
   color: #fff8ee !important;
   background: #000 !important;
 }
+.ff-about-theme
+  .ff-choice
+  [data-slot='checkbox'][data-checked]
+  [data-slot='checkbox-indicator'],
+.ff-about-theme
+  .ff-choice
+  [data-slot='checkbox'][data-checked]
+  [data-slot='checkbox-indicator']
+  svg {
+  color: #fff8ee !important;
+  stroke: #fff8ee !important;
+}
 .ff-about-theme .ff-follow-up {
   gap: 24px;
   margin-top: 22px;

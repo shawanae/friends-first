@@ -824,7 +824,7 @@ function AboutYouScreen({
     </Question>,
     <Question
       key="race"
-      title="What is your race or ethnicity?"
+      title="What is your race and or ethnicity?"
       hint="Select all that apply."
     >
       <Choices
@@ -1886,7 +1886,7 @@ export default function FriendsFirst() {
                 />
               </Question>
               <Question
-                title="What is your race or ethnicity?"
+                title="What is your race and or ethnicity?"
                 hint="Select all that apply."
               >
                 <Choices
