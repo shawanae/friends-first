@@ -2,6 +2,10 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:400 700;font-display:swap;src:url('/fonts/space-grotesk-latin.woff2') format('woff2')}
+@font-face{font-family:'Montserrat';font-style:normal;font-weight:500;font-display:swap;src:url('/fonts/montserrat-500-latin.woff2') format('woff2')}
+@font-face{font-family:'Manrope';font-style:normal;font-weight:400 700;font-display:swap;src:url('/fonts/manrope-latin.woff2') format('woff2')}
+
 /* Friends First keeps Pairwise's editorial structure while making the survey more guided. */
 .ff-choice-grid.ff-single-column{grid-template-columns:1fr}.ff-active-screen{min-height:360px}.ff-active-screen.has-error .ff-question{border-color:#a94f42;box-shadow:0 0 0 3px #a94f4217}.ff-section-trail{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}.ff-section-trail span{padding:7px 11px;border:1px solid #d9cdc2;border-radius:999px;color:var(--muted);background:#fff9;font-size:12px;font-weight:750}.ff-section-trail span.is-current{border-color:var(--coral);color:#fff;background:var(--coral)}.ff-range-pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}.ff-range-pair>div{padding:16px;border-radius:12px;background:#f3ebe3}.ff-range-pair strong{display:block;margin-bottom:12px;color:var(--muted);font-size:13px}.ff-active-screen .ff-question{animation:ff-question-in .2s ease-out}@keyframes ff-question-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}@media(max-width:620px){.ff-range-pair{grid-template-columns:1fr}.ff-section-trail{gap:6px}.ff-section-trail span{padding:6px 9px;font-size:11px}}
 .ff-shell{--ink:#30282f;--muted:#746a70;--plum:#3d2b39;--coral:#bd654f;--cream:#f7f1e8;--paper:#fffdfa;--line:#ddd1c5;min-height:100vh;color:var(--ink);background:radial-gradient(circle at 92% 2%,#bd654f1c,transparent 30rem),var(--cream)}
@@ -88,23 +92,35 @@
   transform: translate(-50%, -50%);
   color: #fff8ee;
   font-size: clamp(64px, 8vw, 104px);
-  font-weight: 300;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-weight: 400;
   line-height: 1;
   text-align: center;
   letter-spacing: -0.055em;
 }
-.ff-home p {
+.ff-home h1 strong {
+  font-weight: 700;
+}
+.ff-home h1 span {
+  font-weight: 400;
+}
+.ff-home-tagline {
   position: absolute;
   bottom: 7.5vh;
   left: 3vw;
   margin: 0;
   color: #fff8ee;
+  font-family: 'Montserrat', 'Segoe UI', sans-serif;
   font-size: clamp(16px, 1.6vw, 22px);
+  font-weight: 500;
   line-height: 1.35;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.ff-home p br + * {
+.ff-home-tagline span {
+  display: block;
+}
+.ff-home-tagline span:last-child {
   text-align: right;
 }
 .ff-home [data-slot='button'] {
@@ -166,6 +182,7 @@
   gap: 14px;
   margin: 0;
   color: #fff8ee;
+  font-family: 'Montserrat', 'Segoe UI', sans-serif !important;
   font-size: clamp(48px, 6vw, 72px);
   font-weight: 400;
   line-height: 1;
@@ -206,10 +223,12 @@
   background: #ffdf62;
 }
 .ff-about-theme .ff-about-section-title {
+  font-family: 'Manrope', 'Segoe UI', sans-serif !important;
   font-size: clamp(27px, 3vw, 41px);
   font-weight: 700;
 }
 .ff-about-theme .ff-about-section-status {
+  font-family: 'Manrope', 'Segoe UI', sans-serif !important;
   font-size: 16px;
   font-weight: 400;
   text-decoration: none;
@@ -269,6 +288,76 @@
   color: #ffdf62 !important;
 }
 
+.ff-shell.ff-privacy-theme,
+.ff-privacy-theme .ff-main {
+  min-height: 100vh;
+  color: #fff8ee;
+  background: #10040b;
+}
+.ff-shell.ff-privacy-theme * {
+  color: #fff8ee !important;
+}
+.ff-privacy-theme .ff-progress {
+  border-color: #fff8ee3d;
+  background: #10040b;
+}
+.ff-privacy-theme .ff-progress [data-slot='progress-track'] {
+  background: #44333c;
+}
+.ff-privacy-theme .ff-progress [data-slot='progress-indicator'] {
+  background: #fff8ee;
+}
+.ff-privacy-theme .ff-form {
+  width: min(1120px, calc(100% - 70px));
+  padding-top: 40px;
+}
+.ff-privacy-frame {
+  display: grid;
+  min-height: 430px;
+  place-content: center;
+  padding: clamp(42px, 8vw, 90px);
+  border: 1.5px solid #fff8ee;
+  border-radius: 52px;
+  text-align: center;
+}
+.ff-privacy-heading h2 {
+  margin: 0;
+  font-family: 'Montserrat', 'Segoe UI', sans-serif !important;
+  font-size: clamp(46px, 6vw, 72px);
+  font-weight: 500;
+  line-height: 1;
+}
+.ff-privacy-theme .ff-welcome {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.ff-privacy-theme .ff-welcome h3 {
+  margin: 48px 0 12px;
+  font-family: 'Manrope', 'Segoe UI', sans-serif !important;
+  font-size: clamp(25px, 3vw, 34px);
+  font-weight: 700;
+}
+.ff-privacy-theme .ff-welcome p {
+  max-width: 660px;
+  margin: 0 auto;
+  font-family: 'Manrope', 'Segoe UI', sans-serif !important;
+  font-size: clamp(16px, 1.8vw, 20px);
+  line-height: 1.65;
+}
+.ff-privacy-theme .ff-footer {
+  border-color: #fff8ee55;
+}
+.ff-privacy-theme .ff-footer [data-slot='button'] {
+  border-color: #fff8ee;
+  color: #fff8ee;
+  background: transparent;
+}
+.ff-privacy-theme .ff-footer [data-slot='button']:hover {
+  color: #10040b !important;
+  background: #fff8ee;
+}
+
 @media (max-width: 700px) {
   .ff-home-arch {
     width: 74px;
@@ -282,6 +371,20 @@
   .ff-home p {
     bottom: 17vh;
     font-size: 14px;
+  }
+  .ff-privacy-theme .ff-form {
+    width: min(100% - 28px, 1120px);
+  }
+  .ff-privacy-frame {
+    min-height: 420px;
+    padding: 34px 20px;
+    border-radius: 30px;
+  }
+  .ff-privacy-heading h2 {
+    font-size: 42px;
+  }
+  .ff-privacy-theme .ff-welcome h3 {
+    margin-top: 38px;
   }
   .ff-home [data-slot='button'] {
     right: 5vw;

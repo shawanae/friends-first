@@ -6,8 +6,6 @@ import {
   FileDown,
   HeartHandshake,
   Info,
-  LockKeyhole,
-  ShieldCheck,
   Trash2,
   UserRound,
 } from 'lucide-react';
@@ -26,11 +24,7 @@ const STORAGE_KEY = 'friends-first-responses-v1';
 const blankAnswers: Answers = { selfPoints: {}, partnerPoints: {} };
 
 const modules = [
-  [
-    'Welcome',
-    'Your privacy comes first',
-    'A private reflection on compatibility, preferences, and what you value.',
-  ],
+  ['Privacy Notice', 'Privacy Notice', ''],
   [
     'About you',
     'Module 1',
@@ -1664,11 +1658,12 @@ export default function FriendsFirst() {
     return (
       <main className="ff-home">
         <div className="ff-home-arch" aria-hidden="true" />
-        <h1>Friends First</h1>
-        <p>
-          Know what you want
-          <br />
-          Find it here
+        <h1>
+          <strong>Friends</strong> <span>First</span>
+        </h1>
+        <p className="ff-home-tagline">
+          <span>Know what you want...</span>
+          <span>Find it here</span>
         </p>
         <Button size="lg" variant="outline" onClick={() => setShowHome(false)}>
           Start
@@ -1717,14 +1712,16 @@ export default function FriendsFirst() {
     );
 
   return (
-    <main className={`ff-shell ${step === 1 ? 'ff-about-theme' : ''}`}>
+    <main
+      className={`ff-shell ${step === 0 ? 'ff-privacy-theme' : step === 1 ? 'ff-about-theme' : ''}`}
+    >
       <ReviewSummary answers={answers} printable />
       <section className="ff-main" id="friends-first-top">
         <div className="ff-progress">
           <div>
             <span>
               {step === 0
-                ? 'Welcome'
+                ? 'Privacy Notice'
                 : step === 1 && aboutOverview
                   ? 'About you'
                   : screenSections
@@ -1738,7 +1735,7 @@ export default function FriendsFirst() {
           <Progress value={screenProgress} />
         </div>
         <div className="ff-form">
-          {!(step === 1 && aboutOverview) && (
+          {step !== 0 && !(step === 1 && aboutOverview) && (
             <header className="ff-heading">
               <h2>
                 {step === 1 && aboutOverview
@@ -1754,28 +1751,18 @@ export default function FriendsFirst() {
           )}
 
           {step === 0 && (
-            <div className="ff-welcome">
-              <div className="ff-welcome-icon">
-                <LockKeyhole />
+            <section className="ff-privacy-frame">
+              <header className="ff-privacy-heading">
+                <h2>Privacy Notice</h2>
+              </header>
+              <div className="ff-welcome">
+                <h3>Your answers stay with you.</h3>
+                <p>
+                  Responses are saved only in this browser on this device. They
+                  are never sent to or stored on a server.
+                </p>
               </div>
-              <h3>Your answers stay with you.</h3>
-              <p>
-                Responses are saved only in this browser on this device. They
-                are never sent to or stored on a server.
-              </p>
-              <ul>
-                <li>
-                  <ShieldCheck /> Review and change any response before
-                  completing the survey.
-                </li>
-                <li>
-                  <FileDown /> Download a private PDF summary when you finish.
-                </li>
-                <li>
-                  <Trash2 /> Clear every saved response at any time.
-                </li>
-              </ul>
-            </div>
+            </section>
           )}
 
           {step === 1 && aboutOverview && (
