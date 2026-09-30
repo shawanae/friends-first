@@ -203,6 +203,18 @@
   padding-right: clamp(28px, 7vw, 88px);
   padding-left: clamp(28px, 7vw, 88px);
 }
+.ff-consideration-intro {
+  display: grid;
+  min-height: 430px;
+  place-content: center;
+}
+.ff-consideration-intro .ff-consideration-heading {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.ff-consideration-intro .ff-consideration-heading p {
+  line-height: 1.65;
+}
 .ff-consideration-theme .ff-form {
   width: min(1280px, calc(100% - 70px));
 }
