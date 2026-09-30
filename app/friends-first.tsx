@@ -9,7 +9,9 @@ import {
   LockKeyhole,
   ShieldCheck,
   Trash2,
+  UserRound,
 } from 'lucide-react';
+import { buildFriendsFirstPdf, type PdfSection } from '@/lib/friends-first-pdf';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -107,6 +109,7 @@ const religionOptions = [
   'Buddhist',
   'Sikh',
   'Spiritual but not Religious',
+  'Pagan',
   'Agnostic',
   'Atheist',
   'Other',
@@ -409,7 +412,12 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
       ['genderAlign', 'Gender identity aligns with assigned sex at birth'],
       ['race', 'Race/ethnicity'],
       ['education', 'Education'],
-      ['religion', 'Religion/worldview'],
+      [
+        'religionPractice',
+        'Currently practicing a religion or spiritual practice',
+      ],
+      ['religion', 'Religion or spiritual practice'],
+      ['religionOther', 'Religion or spiritual practice (Other)'],
       ['politics', 'Political views'],
       ['children', 'Has children'],
       ['futureChildren', 'Wants children in the future'],
@@ -491,6 +499,30 @@ function valueText(value: AnswerValue | undefined) {
   return value;
 }
 
+function prepareSummaryAnswers(answers: Answers) {
+  const prepared = { ...answers };
+  const scalar = (key: string, fallback: string) =>
+    typeof answers[key] === 'string' ? answers[key] : fallback;
+  if (answers.heightFeet || answers.heightInches)
+    prepared.height = `${scalar('heightFeet', '0')} ft ${scalar('heightInches', '0')} in`;
+  if (answers.minAge || answers.maxAge)
+    prepared.ageRange = `${scalar('minAge', '—')} to ${scalar('maxAge', '—')}`;
+  if (answers.minHeightFeet || answers.maxHeightFeet)
+    prepared.heightRange = `${scalar('minHeightFeet', '—')} ft ${scalar('minHeightInches', '0')} in to ${scalar('maxHeightFeet', '—')} ft ${scalar('maxHeightInches', '0')} in`;
+  return prepared;
+}
+
+function pdfSections(answers: Answers): PdfSection[] {
+  const prepared = prepareSummaryAnswers(answers);
+  return summaryGroups.map(([title, rows]) => ({
+    title,
+    rows: rows.map(([key, label]) => ({
+      label,
+      value: valueText(prepared[key]),
+    })),
+  }));
+}
+
 function ReviewSummary({
   answers,
   printable = false,
@@ -498,13 +530,7 @@ function ReviewSummary({
   answers: Answers;
   printable?: boolean;
 }) {
-  const prepared = { ...answers };
-  if (answers.heightFeet || answers.heightInches)
-    prepared.height = `${answers.heightFeet || '0'} ft ${answers.heightInches || '0'} in`;
-  if (answers.minAge || answers.maxAge)
-    prepared.ageRange = `${answers.minAge || '—'} to ${answers.maxAge || '—'}`;
-  if (answers.minHeightFeet || answers.maxHeightFeet)
-    prepared.heightRange = `${answers.minHeightFeet || '—'} ft ${answers.minHeightInches || '0'} in to ${answers.maxHeightFeet || '—'} ft ${answers.maxHeightInches || '0'} in`;
+  const prepared = prepareSummaryAnswers(answers);
   return (
     <div className={printable ? 'ff-print-summary' : 'ff-review'}>
       {printable && (
@@ -626,6 +652,11 @@ function aboutScreenComplete(index: number, answers: Answers) {
     (hasList(answers.petTypes) &&
       (!(answers.petTypes as string[]).includes('Other') ||
         hasText(answers.petOther)));
+  const religionOkay =
+    answers.religionPractice === 'No' ||
+    (answers.religionPractice === 'Yes' &&
+      hasText(answers.religion) &&
+      (answers.religion !== 'Other' || hasText(answers.religionOther)));
   return (
     [
       validNumber(answers.age, 20, 100),
@@ -637,7 +668,7 @@ function aboutScreenComplete(index: number, answers: Answers) {
       hasText(answers.genderAlign),
       hasList(answers.race),
       hasText(answers.education),
-      hasText(answers.religion),
+      hasText(answers.religionPractice) && religionOkay,
       hasText(answers.politics),
       hasText(answers.alcohol),
       hasText(answers.nicotine) && nicotineOkay,
@@ -817,14 +848,38 @@ function AboutYouScreen({
         singleColumn
       />
     </Question>,
-    <Question key="religion" title="What is your religion or worldview?">
-      <Choices
-        options={religionOptions}
-        value={answers.religion}
-        onChange={(value) => setAnswer('religion', value)}
-        singleColumn
-      />
-    </Question>,
+    <div key="religion" className="ff-stack">
+      <Question title="Are you currently practicing any religions and/or spiritual practices?">
+        <Choices
+          options={['Yes', 'No']}
+          value={answers.religionPractice}
+          onChange={(value) => setAnswer('religionPractice', value)}
+          singleColumn
+        />
+      </Question>
+      {answers.religionPractice === 'Yes' && (
+        <div className="ff-follow-up">
+          <Question title="Select your religion or spiritual practice.">
+            <Choices
+              options={religionOptions}
+              value={answers.religion}
+              onChange={(value) => setAnswer('religion', value)}
+              singleColumn
+            />
+          </Question>
+          {answers.religion === 'Other' && (
+            <Question title="Please specify.">
+              <Input
+                value={(answers.religionOther as string) || ''}
+                onChange={(event) =>
+                  setAnswer('religionOther', event.target.value)
+                }
+              />
+            </Question>
+          )}
+        </div>
+      )}
+    </div>,
     <Question key="politics" title="What are your political views?">
       <Choices
         options={politicalOptions}
@@ -1348,6 +1403,7 @@ function ConsiderationScreen({
 }
 
 export default function FriendsFirst() {
+  const [showHome, setShowHome] = useState(true);
   const [step, setStep] = useState(0);
   const [substep, setSubstep] = useState(0);
   const [aboutOverview, setAboutOverview] = useState(true);
@@ -1381,6 +1437,9 @@ export default function FriendsFirst() {
         keys.forEach((item) => delete next[item]);
       if (key === 'gender' && value !== 'Prefer to Self-describe')
         clear('genderOther');
+      if (key === 'religionPractice' && value === 'No')
+        clear('religion', 'religionOther');
+      if (key === 'religion' && value !== 'Other') clear('religionOther');
       if (key === 'nicotine' && value === 'No') clear('nicotineTypes');
       if (key === 'cannabis' && value === 'No') clear('cannabisTypes');
       if (key === 'pets' && value === 'No') clear('petTypes', 'petOther');
@@ -1464,6 +1523,11 @@ export default function FriendsFirst() {
   };
   const goBack = () => {
     setShowValidation(false);
+    if (step === 0) {
+      setShowHome(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (step === 1 && !aboutOverview) {
       const sectionStart = aboutScreens.findIndex(
         (section) => section === aboutScreens[substep],
@@ -1531,8 +1595,22 @@ export default function FriendsFirst() {
     setAboutOverview(true);
     setShowValidation(false);
     setCompleted(false);
+    setShowHome(true);
   };
-  const downloadPdf = () => window.print();
+  const downloadPdf = () => {
+    const bytes = buildFriendsFirstPdf(pdfSections(answers));
+    const blob = new Blob([bytes.buffer as ArrayBuffer], {
+      type: 'application/pdf',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'friends-first-responses.pdf';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   const screenSections =
     step === 1 ? aboutScreens : step === 2 ? considerationScreens : null;
@@ -1582,6 +1660,22 @@ export default function FriendsFirst() {
           )
         : Math.round((step / 9) * 100);
 
+  if (showHome)
+    return (
+      <main className="ff-home">
+        <div className="ff-home-arch" aria-hidden="true" />
+        <h1>Friends First</h1>
+        <p>
+          Know what you want
+          <br />
+          Find it here
+        </p>
+        <Button size="lg" variant="outline" onClick={() => setShowHome(false)}>
+          Start
+        </Button>
+      </main>
+    );
+
   if (completed)
     return (
       <main className="ff-success">
@@ -1623,7 +1717,7 @@ export default function FriendsFirst() {
     );
 
   return (
-    <main className="ff-shell">
+    <main className={`ff-shell ${step === 1 ? 'ff-about-theme' : ''}`}>
       <ReviewSummary answers={answers} printable />
       <section className="ff-main" id="friends-first-top">
         <div className="ff-progress">
@@ -1633,29 +1727,31 @@ export default function FriendsFirst() {
                 ? 'Welcome'
                 : step === 1 && aboutOverview
                   ? 'About you'
-                : screenSections
-                  ? step === 1
-                    ? `Question ${currentSectionQuestion} of ${currentSectionScreens.length}`
-                    : `Question ${substep + 1} of ${screenSections.length}`
-                  : 'Survey progress'}
+                  : screenSections
+                    ? step === 1
+                      ? `Question ${currentSectionQuestion} of ${currentSectionScreens.length}`
+                      : `Question ${substep + 1} of ${screenSections.length}`
+                    : 'Survey progress'}
             </span>
             <span>{screenProgress}% complete</span>
           </div>
           <Progress value={screenProgress} />
         </div>
         <div className="ff-form">
-          <header className="ff-heading">
-            <h2>
-              {step === 1 && aboutOverview
-                ? 'About you'
-                : currentSection || modules[step][0]}
-            </h2>
-            <p>
-              {step === 1 && aboutOverview
-                ? 'Choose a section. You can complete them in any order.'
-                : modules[step][2]}
-            </p>
-          </header>
+          {!(step === 1 && aboutOverview) && (
+            <header className="ff-heading">
+              <h2>
+                {step === 1 && aboutOverview
+                  ? 'About you'
+                  : currentSection || modules[step][0]}
+              </h2>
+              <p>
+                {step === 1 && aboutOverview
+                  ? 'Choose a section. You can complete them in any order.'
+                  : modules[step][2]}
+              </p>
+            </header>
+          )}
 
           {step === 0 && (
             <div className="ff-welcome">
@@ -1683,15 +1779,18 @@ export default function FriendsFirst() {
           )}
 
           {step === 1 && aboutOverview && (
-            <section
-              className="ff-about-overview"
-              aria-label="About you sections"
-            >
-              <div className="ff-about-section-grid">
-                {aboutSectionProgress.map(
-                  ({ section, screens, completed: done, status }) => (
+            <section className="ff-about-frame" aria-label="About you sections">
+              <header className="ff-about-heading">
+                <h2>
+                  About You <UserRound aria-hidden="true" />
+                </h2>
+                <p>Choose a section. You can complete them in any order.</p>
+              </header>
+              <div className="ff-about-overview">
+                <div className="ff-about-section-grid">
+                  {aboutSectionProgress.map(({ section, screens, status }) => (
                     <button
-                      className="ff-about-section"
+                      className={`ff-about-section is-${status.toLowerCase().replaceAll(' ', '-')}`}
                       type="button"
                       key={section}
                       onClick={() => {
@@ -1705,17 +1804,14 @@ export default function FriendsFirst() {
                       }}
                     >
                       <span className="ff-about-section-title">{section}</span>
-                      <span className="ff-about-section-count">
-                        {done} of {screens.length} answered
-                      </span>
                       <span className="ff-about-section-status">
                         {showValidation && status !== 'Complete'
                           ? 'Needs attention'
                           : status}
                       </span>
                     </button>
-                  ),
-                )}
+                  ))}
+                </div>
               </div>
             </section>
           )}
@@ -2405,12 +2501,7 @@ export default function FriendsFirst() {
           )}
 
           <footer className="ff-footer">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={goBack}
-              disabled={step === 0}
-            >
+            <Button variant="outline" size="lg" onClick={goBack}>
               {step === 1 && !aboutOverview && currentSectionQuestion === 1
                 ? 'Back to sections'
                 : 'Back'}
@@ -2420,17 +2511,17 @@ export default function FriendsFirst() {
                 <Check />{' '}
                 {loaded ? 'Saved on this device' : 'Loading responses'}
               </span>
-              {step < 9 ? (
+              {step < 9 && !(step === 1 && aboutOverview && !canContinue) ? (
                 <Button size="lg" onClick={continueForward}>
                   {step === 1 && aboutOverview
                     ? 'Continue to consideration filters'
                     : 'Continue'}
                 </Button>
-              ) : (
+              ) : step === 9 ? (
                 <Button size="lg" onClick={completeSurvey}>
                   Complete survey
                 </Button>
-              )}
+              ) : null}
             </div>
             {showValidation && !canContinue && step > 0 && (
               <p className="ff-validation">
