@@ -254,11 +254,15 @@ function Choices({
   singleColumn?: boolean;
 }) {
   const selected = Array.isArray(value) ? value : [];
+  const isYesNo =
+    !multi &&
+    options.length === 2 &&
+    options.includes('Yes') &&
+    options.includes('No');
+  const layoutClass = `ff-choice-grid ${singleColumn ? 'ff-single-column' : ''} ${isYesNo ? 'ff-yes-no' : ''}`;
   if (multi)
     return (
-      <div
-        className={`ff-choice-grid ${singleColumn ? 'ff-single-column' : ''}`}
-      >
+      <div className={layoutClass}>
         {options.map((option) => {
           const active = selected.includes(option);
           return (
@@ -290,7 +294,7 @@ function Choices({
     <RadioGroup
       value={typeof value === 'string' ? value : ''}
       onValueChange={onChange as (value: string) => void}
-      className={`ff-choice-grid ${singleColumn ? 'ff-single-column' : ''}`}
+      className={layoutClass}
     >
       {options.map((option) => (
         <label
