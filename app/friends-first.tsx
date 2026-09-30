@@ -97,16 +97,17 @@ const educationOptions = [
   'Professional or Doctorate Degree',
 ];
 const religionOptions = [
-  'Christian',
-  'Muslim',
-  'Jewish',
-  'Hindu',
-  'Buddhist',
-  'Sikh',
-  'Spiritual but not Religious',
-  'Pagan',
   'Agnostic',
   'Atheist',
+  'Buddhist',
+  'Christian',
+  'Hindu',
+  'Jewish',
+  'Muslim',
+  'Pagan',
+  'Sikh',
+  'Spiritual but not Religious',
+  'Nothing in particular',
   'Other',
 ];
 const practicedReligionOptions = [
@@ -422,13 +423,8 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
       ['genderAlign', 'Gender identity aligns with assigned sex at birth'],
       ['race', 'Race/ethnicity'],
       ['education', 'Education'],
-      [
-        'religionPractice',
-        'Currently practicing a religion or spiritual practice',
-      ],
       ['religion', 'Religion or spiritual practice'],
       ['religionOther', 'Religion or spiritual practice (Other)'],
-      ['agnosticAtheist', 'Agnostic or Atheist'],
       ['politics', 'Political views'],
       ['children', 'Has children'],
       ['futureChildren', 'Wants children in the future'],
@@ -603,11 +599,17 @@ function migrateSavedAnswers(saved: Answers) {
       );
     }
   }
-  if (migrated.religion === 'Agnostic' || migrated.religion === 'Atheist') {
-    migrated.agnosticAtheist = migrated.religion;
-    migrated.religionPractice = 'No';
-    delete migrated.religion;
+  if (!hasText(migrated.religion)) {
+    if (
+      migrated.agnosticAtheist === 'Agnostic' ||
+      migrated.agnosticAtheist === 'Atheist'
+    )
+      migrated.religion = migrated.agnosticAtheist;
+    if (migrated.agnosticAtheist === 'Neither')
+      migrated.religion = 'Nothing in particular';
   }
+  delete migrated.religionPractice;
+  delete migrated.agnosticAtheist;
   return migrated;
 }
 
@@ -688,11 +690,8 @@ function aboutScreenComplete(index: number, answers: Answers) {
       (!(answers.petTypes as string[]).includes('Other') ||
         hasText(answers.petOther)));
   const religionOkay =
-    answers.religionPractice === 'No' ||
-    (answers.religionPractice === 'Yes' &&
-      (!hasText(answers.religion) ||
-        (practicedReligionOptions.includes(answers.religion as string) &&
-          (answers.religion !== 'Other' || hasText(answers.religionOther)))));
+    religionOptions.includes(answers.religion as string) &&
+    (answers.religion !== 'Other' || hasText(answers.religionOther));
   return (
     [
       validNumber(answers.age, 20, 100),
@@ -704,7 +703,7 @@ function aboutScreenComplete(index: number, answers: Answers) {
       hasText(answers.genderAlign),
       hasList(answers.race),
       hasText(answers.education),
-      hasText(answers.religionPractice) && religionOkay,
+      religionOkay,
       hasText(answers.politics),
       hasText(answers.alcohol),
       hasText(answers.nicotine) && nicotineOkay,
@@ -885,44 +884,22 @@ function AboutYouScreen({
       />
     </Question>,
     <div key="religion" className="ff-stack">
-      <Question title="Are you currently practicing any religions and/or spiritual practices?">
+      <Question title="How would you describe your religion and or spiritual practice?">
         <Choices
-          options={['Yes', 'No']}
-          value={answers.religionPractice}
-          onChange={(value) => setAnswer('religionPractice', value)}
+          options={religionOptions}
+          value={answers.religion}
+          onChange={(value) => setAnswer('religion', value)}
           singleColumn
         />
       </Question>
-      {answers.religionPractice === 'Yes' && (
+      {answers.religion === 'Other' && (
         <div className="ff-follow-up">
-          <Question title="Select your religion or spiritual practice.">
-            <Choices
-              options={practicedReligionOptions}
-              value={answers.religion}
-              onChange={(value) => setAnswer('religion', value)}
-              singleColumn
-            />
-          </Question>
-          {answers.religion === 'Other' && (
-            <Question title="Please specify.">
-              <Input
-                value={(answers.religionOther as string) || ''}
-                onChange={(event) =>
-                  setAnswer('religionOther', event.target.value)
-                }
-              />
-            </Question>
-          )}
-        </div>
-      )}
-      {answers.religionPractice === 'No' && (
-        <div className="ff-follow-up">
-          <Question title="Are you Agnostic or Atheist?">
-            <Choices
-              options={['Agnostic', 'Atheist', 'Neither']}
-              value={answers.agnosticAtheist}
-              onChange={(value) => setAnswer('agnosticAtheist', value)}
-              singleColumn
+          <Question title="Please specify.">
+            <Input
+              value={(answers.religionOther as string) || ''}
+              onChange={(event) =>
+                setAnswer('religionOther', event.target.value)
+              }
             />
           </Question>
         </div>
@@ -1499,10 +1476,6 @@ export default function FriendsFirst() {
         keys.forEach((item) => delete next[item]);
       if (key === 'gender' && value !== 'Prefer to Self-describe')
         clear('genderOther');
-      if (key === 'religionPractice' && value === 'No')
-        clear('religion', 'religionOther');
-      if (key === 'religionPractice' && value === 'Yes')
-        clear('agnosticAtheist');
       if (key === 'religion' && value !== 'Other') clear('religionOther');
       if (key === 'dateReligionPractice' && value === 'No')
         clear('dateReligion');
