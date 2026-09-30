@@ -359,6 +359,15 @@
 .ff-about-theme .ff-footer [data-slot='button']:hover * {
   color: #10040b !important;
 }
+.ff-about-theme .ff-footer .ff-about-next {
+  width: min(250px, 38vw);
+  min-height: 52px;
+  border-radius: 7px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .ff-about-theme .ff-validation {
   color: #ffdf62 !important;
 }

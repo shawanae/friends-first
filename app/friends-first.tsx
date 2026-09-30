@@ -108,6 +108,17 @@ const religionOptions = [
   'Atheist',
   'Other',
 ];
+const practicedReligionOptions = [
+  'Buddhist',
+  'Christian',
+  'Hindu',
+  'Jewish',
+  'Muslim',
+  'Pagan',
+  'Sikh',
+  'Spiritual but not Religious',
+  'Other',
+];
 const politicalOptions = [
   'Very Conservative',
   'Conservative',
@@ -416,6 +427,7 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
       ],
       ['religion', 'Religion or spiritual practice'],
       ['religionOther', 'Religion or spiritual practice (Other)'],
+      ['agnosticAtheist', 'Agnostic or Atheist'],
       ['politics', 'Political views'],
       ['children', 'Has children'],
       ['futureChildren', 'Wants children in the future'],
@@ -439,6 +451,10 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
       ['dateGenderOther', 'Other gender considered'],
       ['dateRace', 'Racial/ethnic groups considered'],
       ['raceImportance', 'Importance of racial/ethnic background'],
+      [
+        'dateReligionPractice',
+        'Would date someone religious or with a spiritual practice',
+      ],
       ['dateReligion', 'Religions/worldviews considered'],
       ['religionImportance', 'Importance of worldview alignment'],
       ['datePolitics', 'Political viewpoints considered'],
@@ -586,6 +602,11 @@ function migrateSavedAnswers(saved: Answers) {
       );
     }
   }
+  if (migrated.religion === 'Agnostic' || migrated.religion === 'Atheist') {
+    migrated.agnosticAtheist = migrated.religion;
+    migrated.religionPractice = 'No';
+    delete migrated.religion;
+  }
   return migrated;
 }
 
@@ -617,27 +638,35 @@ const aboutSections = [
 const considerationScreens = [
   'Basics',
   'Basics',
+  'Identity',
+  'Identity',
+  'Identity',
+  'Identity',
+  'Identity',
+  'Identity',
+  'Identity',
   'Basics',
   'Basics',
-  'Identity',
-  'Identity',
-  'Identity',
-  'Identity',
-  'Identity',
-  'Identity',
-  'Identity',
+  'Lifestyle',
+  'Lifestyle',
+  'Lifestyle',
+  'Lifestyle',
+  'Lifestyle',
+  'Lifestyle',
+  'Lifestyle',
+  'Lifestyle',
   'Family',
   'Family',
-  'Lifestyle',
-  'Lifestyle',
-  'Lifestyle',
-  'Lifestyle',
-  'Lifestyle',
-  'Lifestyle',
-  'Lifestyle',
-  'Lifestyle',
   'Pets',
   'Pets',
+] as const;
+
+// Maps the participant-facing order to the existing question definitions.
+// Keeping this explicit preserves saved answer keys while allowing the survey
+// sequence to change without rewriting the individual question components.
+const considerationScreenOrder = [
+  0, 1, 6, 7, 8, 4, 5, 9, 10, 2, 3, 13, 14, 15, 16, 17, 18, 19, 20, 11, 12, 21,
+  22,
 ] as const;
 
 function aboutScreenComplete(index: number, answers: Answers) {
@@ -653,8 +682,9 @@ function aboutScreenComplete(index: number, answers: Answers) {
   const religionOkay =
     answers.religionPractice === 'No' ||
     (answers.religionPractice === 'Yes' &&
-      hasText(answers.religion) &&
-      (answers.religion !== 'Other' || hasText(answers.religionOther)));
+      (!hasText(answers.religion) ||
+        (practicedReligionOptions.includes(answers.religion as string) &&
+          (answers.religion !== 'Other' || hasText(answers.religionOther)))));
   return (
     [
       validNumber(answers.age, 20, 100),
@@ -689,41 +719,41 @@ function considerationScreenComplete(index: number, answers: Answers) {
   const educationOkay =
     educationOptions.indexOf(answers.idealEducation as string) >=
     educationOptions.indexOf(answers.minEducation as string);
-  return (
-    [
-      validNumber(answers.minAge, 20, 100) &&
-        validNumber(answers.maxAge, 20, 100) &&
-        maxAge >= minAge,
-      validNumber(answers.minHeightFeet, 3, 8) &&
-        validNumber(answers.minHeightInches, 0, 11) &&
-        validNumber(answers.maxHeightFeet, 3, 8) &&
-        validNumber(answers.maxHeightInches, 0, 11) &&
-        maxHeight >= minHeight,
-      hasText(answers.minEducation),
-      hasText(answers.idealEducation) && educationOkay,
-      hasList(answers.dateGender) &&
-        (!(answers.dateGender as string[]).includes('Other') ||
-          hasText(answers.dateGenderOther)),
-      hasList(answers.dateRace),
-      hasText(answers.raceImportance),
-      hasList(answers.dateReligion),
-      hasText(answers.religionImportance),
-      hasList(answers.datePolitics),
-      hasText(answers.politicsImportance),
-      hasText(answers.dateChildren),
-      hasText(answers.partnerChildren),
-      hasList(answers.dateAlcohol),
-      hasText(answers.alcoholImportance),
-      hasList(answers.dateNicotine),
-      hasText(answers.nicotineImportance),
-      hasList(answers.dateCannabis),
-      hasText(answers.cannabisImportance),
-      hasList(answers.dateExercise),
-      hasText(answers.exerciseImportance),
-      hasList(answers.datePets),
-      hasText(answers.petsImportance),
-    ][index] ?? false
-  );
+  const screenCompletions = [
+    validNumber(answers.minAge, 20, 100) &&
+      validNumber(answers.maxAge, 20, 100) &&
+      maxAge >= minAge,
+    validNumber(answers.minHeightFeet, 3, 8) &&
+      validNumber(answers.minHeightInches, 0, 11) &&
+      validNumber(answers.maxHeightFeet, 3, 8) &&
+      validNumber(answers.maxHeightInches, 0, 11) &&
+      maxHeight >= minHeight,
+    hasText(answers.minEducation),
+    hasText(answers.idealEducation) && educationOkay,
+    hasText(answers.dateReligionPractice) &&
+      (answers.dateReligionPractice === 'No' || hasList(answers.dateReligion)),
+    hasText(answers.religionImportance),
+    hasList(answers.dateGender) &&
+      (!(answers.dateGender as string[]).includes('Other') ||
+        hasText(answers.dateGenderOther)),
+    hasList(answers.dateRace),
+    hasText(answers.raceImportance),
+    hasList(answers.datePolitics),
+    hasText(answers.politicsImportance),
+    hasText(answers.dateChildren),
+    hasText(answers.partnerChildren),
+    hasList(answers.dateAlcohol),
+    hasText(answers.alcoholImportance),
+    hasList(answers.dateNicotine),
+    hasText(answers.nicotineImportance),
+    hasList(answers.dateCannabis),
+    hasText(answers.cannabisImportance),
+    hasList(answers.dateExercise),
+    hasText(answers.exerciseImportance),
+    hasList(answers.datePets),
+    hasText(answers.petsImportance),
+  ];
+  return screenCompletions[considerationScreenOrder[index]] ?? false;
 }
 
 function moduleComplete(module: number, answers: Answers) {
@@ -859,7 +889,7 @@ function AboutYouScreen({
         <div className="ff-follow-up">
           <Question title="Select your religion or spiritual practice.">
             <Choices
-              options={religionOptions}
+              options={practicedReligionOptions}
               value={answers.religion}
               onChange={(value) => setAnswer('religion', value)}
               singleColumn
@@ -875,6 +905,18 @@ function AboutYouScreen({
               />
             </Question>
           )}
+        </div>
+      )}
+      {answers.religionPractice === 'No' && (
+        <div className="ff-follow-up">
+          <Question title="Are you Agnostic or Atheist?">
+            <Choices
+              options={['Agnostic', 'Atheist', 'Neither']}
+              value={answers.agnosticAtheist}
+              onChange={(value) => setAnswer('agnosticAtheist', value)}
+              singleColumn
+            />
+          </Question>
         </div>
       )}
     </div>,
@@ -1111,6 +1153,43 @@ function ConsiderationScreen({
         singleColumn
       />
     </Question>,
+    <div key="date-religion" className="ff-stack">
+      <Question title="Would you date someone religious and or has a spiritual practice?">
+        <Choices
+          options={['Yes', 'No']}
+          value={answers.dateReligionPractice}
+          onChange={(value) => setAnswer('dateReligionPractice', value)}
+          singleColumn
+        />
+      </Question>
+      {answers.dateReligionPractice === 'Yes' && (
+        <div className="ff-follow-up">
+          <Question
+            title="Which religious or worldview identities would you consider dating?"
+            hint="Select all that apply."
+          >
+            <Choices
+              options={practicedReligionOptions}
+              value={answers.dateReligion}
+              onChange={(value) => setAnswer('dateReligion', value)}
+              multi
+              singleColumn
+            />
+          </Question>
+        </div>
+      )}
+    </div>,
+    <Question
+      key="religion-importance"
+      title="How important is religious or worldview alignment?"
+    >
+      <Choices
+        options={importanceOptions}
+        value={answers.religionImportance}
+        onChange={(value) => setAnswer('religionImportance', value)}
+        singleColumn
+      />
+    </Question>,
     <div key="date-gender" className="ff-stack">
       <Question
         title="What genders would you consider dating?"
@@ -1166,30 +1245,6 @@ function ConsiderationScreen({
         options={importanceOptions}
         value={answers.raceImportance}
         onChange={(value) => setAnswer('raceImportance', value)}
-        singleColumn
-      />
-    </Question>,
-    <Question
-      key="date-religion"
-      title="Which religious or worldview identities would you consider dating?"
-      hint="Select all that apply."
-    >
-      <Choices
-        options={religionOptions}
-        value={answers.dateReligion}
-        onChange={(value) => setAnswer('dateReligion', value)}
-        multi
-        singleColumn
-      />
-    </Question>,
-    <Question
-      key="religion-importance"
-      title="How important is religious or worldview alignment?"
-    >
-      <Choices
-        options={importanceOptions}
-        value={answers.religionImportance}
-        onChange={(value) => setAnswer('religionImportance', value)}
         singleColumn
       />
     </Question>,
@@ -1397,7 +1452,7 @@ function ConsiderationScreen({
       />
     </Question>,
   ];
-  return screens[index];
+  return screens[considerationScreenOrder[index]];
 }
 
 export default function FriendsFirst() {
@@ -1437,7 +1492,11 @@ export default function FriendsFirst() {
         clear('genderOther');
       if (key === 'religionPractice' && value === 'No')
         clear('religion', 'religionOther');
+      if (key === 'religionPractice' && value === 'Yes')
+        clear('agnosticAtheist');
       if (key === 'religion' && value !== 'Other') clear('religionOther');
+      if (key === 'dateReligionPractice' && value === 'No')
+        clear('dateReligion');
       if (key === 'nicotine' && value === 'No') clear('nicotineTypes');
       if (key === 'cannabis' && value === 'No') clear('cannabisTypes');
       if (key === 'pets' && value === 'No') clear('petTypes', 'petOther');
@@ -2503,7 +2562,13 @@ export default function FriendsFirst() {
                 {loaded ? 'Saved on this device' : 'Loading responses'}
               </span>
               {step < 9 && !(step === 1 && aboutOverview && !canContinue) ? (
-                <Button size="lg" onClick={continueForward}>
+                <Button
+                  className={
+                    step === 1 && aboutOverview ? 'ff-about-next' : undefined
+                  }
+                  size="lg"
+                  onClick={continueForward}
+                >
                   {step === 1 && aboutOverview ? 'NEXT' : 'Continue'}
                 </Button>
               ) : step === 9 ? (
