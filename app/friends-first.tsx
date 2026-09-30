@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Check,
   FileDown,
+  Heart,
   HeartHandshake,
   Info,
   Trash2,
@@ -635,6 +636,13 @@ const aboutSections = [
   'Family & Pets',
 ] as const;
 
+const considerationSections = [
+  'Basics',
+  'Identity',
+  'Lifestyle',
+  'Family & Pets',
+] as const;
+
 const considerationScreens = [
   'Basics',
   'Basics',
@@ -655,10 +663,10 @@ const considerationScreens = [
   'Lifestyle',
   'Lifestyle',
   'Lifestyle',
-  'Family',
-  'Family',
-  'Pets',
-  'Pets',
+  'Family & Pets',
+  'Family & Pets',
+  'Family & Pets',
+  'Family & Pets',
 ] as const;
 
 // Maps the participant-facing order to the existing question definitions.
@@ -1460,6 +1468,7 @@ export default function FriendsFirst() {
   const [step, setStep] = useState(0);
   const [substep, setSubstep] = useState(0);
   const [aboutOverview, setAboutOverview] = useState(true);
+  const [considerationOverview, setConsiderationOverview] = useState(true);
   const [answers, setAnswers] = useState<Answers>(blankAnswers);
   const [loaded, setLoaded] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -1526,10 +1535,13 @@ export default function FriendsFirst() {
       return aboutOverview
         ? moduleComplete(1, answers)
         : aboutScreenComplete(substep, answers);
-    if (step === 2) return considerationScreenComplete(substep, answers);
+    if (step === 2)
+      return considerationOverview
+        ? moduleComplete(2, answers)
+        : considerationScreenComplete(substep, answers);
     if (step >= 3 && step <= 8) return moduleComplete(step, answers);
     return true;
-  }, [aboutOverview, answers, step, substep]);
+  }, [aboutOverview, answers, considerationOverview, step, substep]);
 
   const focusCurrentQuestion = () =>
     requestAnimationFrame(() => {
@@ -1543,13 +1555,18 @@ export default function FriendsFirst() {
   const continueForward = () => {
     if (!canContinue) {
       setShowValidation(true);
-      if (!(step === 1 && aboutOverview)) focusCurrentQuestion();
+      if (
+        !(step === 1 && aboutOverview) &&
+        !(step === 2 && considerationOverview)
+      )
+        focusCurrentQuestion();
       return;
     }
     setShowValidation(false);
     if (step === 1 && aboutOverview) {
       setStep(2);
       setSubstep(0);
+      setConsiderationOverview(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -1568,8 +1585,24 @@ export default function FriendsFirst() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (step === 2 && substep < considerationScreens.length - 1) {
-      setSubstep((value) => value + 1);
+    if (step === 2 && considerationOverview) {
+      setStep(3);
+      setSubstep(0);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (step === 2) {
+      const sectionScreens = considerationScreens
+        .map((section, index) =>
+          section === considerationScreens[substep] ? index : -1,
+        )
+        .filter((index) => index >= 0);
+      const questionPosition = sectionScreens.indexOf(substep);
+      if (questionPosition < sectionScreens.length - 1) {
+        setSubstep(sectionScreens[questionPosition + 1]);
+      } else {
+        setConsiderationOverview(true);
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -1597,8 +1630,18 @@ export default function FriendsFirst() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (step === 2 && substep > 0) {
-      setSubstep((value) => value - 1);
+    if (step === 2 && !considerationOverview) {
+      const sectionScreens = considerationScreens
+        .map((section, index) =>
+          section === considerationScreens[substep] ? index : -1,
+        )
+        .filter((index) => index >= 0);
+      const questionPosition = sectionScreens.indexOf(substep);
+      if (questionPosition > 0) {
+        setSubstep(sectionScreens[questionPosition - 1]);
+      } else {
+        setConsiderationOverview(true);
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -1607,7 +1650,7 @@ export default function FriendsFirst() {
       setAboutOverview(true);
     } else if (step === 3) {
       setStep(2);
-      setSubstep(considerationScreens.length - 1);
+      setConsiderationOverview(true);
     } else {
       setStep((value) => Math.max(0, value - 1));
       setSubstep(0);
@@ -1632,6 +1675,7 @@ export default function FriendsFirst() {
       setStep(incompleteModule);
       setSubstep(Math.max(0, missingScreen));
       if (incompleteModule === 1) setAboutOverview(false);
+      if (incompleteModule === 2) setConsiderationOverview(false);
       setShowValidation(true);
       focusCurrentQuestion();
       return;
@@ -1650,6 +1694,7 @@ export default function FriendsFirst() {
     setStep(0);
     setSubstep(0);
     setAboutOverview(true);
+    setConsiderationOverview(true);
     setShowValidation(false);
     setCompleted(false);
     setShowHome(true);
@@ -1684,6 +1729,25 @@ export default function FriendsFirst() {
       .filter((index) => index >= 0);
     const completedScreens = screens.filter((index) =>
       aboutScreenComplete(index, answers),
+    );
+    return {
+      section,
+      screens,
+      completed: completedScreens.length,
+      status:
+        completedScreens.length === screens.length
+          ? 'Complete'
+          : completedScreens.length > 0
+            ? 'In progress'
+            : 'Not started',
+    };
+  });
+  const considerationSectionProgress = considerationSections.map((section) => {
+    const screens = considerationScreens
+      .map((screen, index) => (screen === section ? index : -1))
+      .filter((index) => index >= 0);
+    const completedScreens = screens.filter((index) =>
+      considerationScreenComplete(index, answers),
     );
     return {
       section,
@@ -1776,7 +1840,7 @@ export default function FriendsFirst() {
 
   return (
     <main
-      className={`ff-shell ${step === 0 ? 'ff-privacy-theme' : step === 1 ? 'ff-about-theme' : ''}`}
+      className={`ff-shell ${step === 0 ? 'ff-privacy-theme' : step === 1 || step === 2 ? 'ff-about-theme' : ''} ${step === 2 ? 'ff-consideration-theme' : ''}`}
     >
       <ReviewSummary answers={answers} printable />
       <section className="ff-main" id="friends-first-top">
@@ -1785,12 +1849,13 @@ export default function FriendsFirst() {
             <span>
               {step === 0
                 ? 'Privacy Notice'
-                : step === 1 && aboutOverview
-                  ? 'About you'
+                : (step === 1 && aboutOverview) ||
+                    (step === 2 && considerationOverview)
+                  ? step === 1
+                    ? 'About you'
+                    : 'Consideration filters'
                   : screenSections
-                    ? step === 1
-                      ? `Question ${currentSectionQuestion} of ${currentSectionScreens.length}`
-                      : `Question ${substep + 1} of ${screenSections.length}`
+                    ? `Question ${currentSectionQuestion} of ${currentSectionScreens.length}`
                     : 'Survey progress'}
             </span>
             <span>{screenProgress}% complete</span>
@@ -1798,20 +1863,22 @@ export default function FriendsFirst() {
           <Progress value={screenProgress} />
         </div>
         <div className="ff-form">
-          {step !== 0 && !(step === 1 && aboutOverview) && (
-            <header className="ff-heading">
-              <h2>
-                {step === 1 && aboutOverview
-                  ? 'About you'
-                  : currentSection || modules[step][0]}
-              </h2>
-              <p>
-                {step === 1 && aboutOverview
-                  ? 'Choose a section. You can complete them in any order.'
-                  : modules[step][2]}
-              </p>
-            </header>
-          )}
+          {step !== 0 &&
+            !(step === 1 && aboutOverview) &&
+            !(step === 2 && considerationOverview) && (
+              <header className="ff-heading">
+                <h2>
+                  {step === 1 && aboutOverview
+                    ? 'About you'
+                    : currentSection || modules[step][0]}
+                </h2>
+                <p>
+                  {step === 1 && aboutOverview
+                    ? 'Choose a section. You can complete them in any order.'
+                    : modules[step][2]}
+                </p>
+              </header>
+            )}
 
           {step === 0 && (
             <section className="ff-privacy-frame">
@@ -1878,7 +1945,60 @@ export default function FriendsFirst() {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 2 && considerationOverview && (
+            <section
+              className="ff-about-frame ff-consideration-frame"
+              aria-label="Consideration filter sections"
+            >
+              <header className="ff-about-heading ff-consideration-heading">
+                <h2>
+                  <span>Who Would You Realistically</span>
+                  <span>Consider Dating?</span>
+                </h2>
+                <p>
+                  A preference is not the same as a dealbreaker. Choose a
+                  section. You can complete them in any order.
+                </p>
+              </header>
+              <div className="ff-about-overview">
+                <div className="ff-about-section-grid">
+                  {considerationSectionProgress.map(
+                    ({ section, screens, status }) => (
+                      <button
+                        className={`ff-about-section is-${status.toLowerCase().replaceAll(' ', '-')}`}
+                        type="button"
+                        key={section}
+                        onClick={() => {
+                          const firstIncomplete = screens.find(
+                            (index) =>
+                              !considerationScreenComplete(index, answers),
+                          );
+                          setSubstep(firstIncomplete ?? screens[0]);
+                          setConsiderationOverview(false);
+                          setShowValidation(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        <span className="ff-about-section-title">
+                          {section}
+                        </span>
+                        <span className="ff-about-section-status">
+                          {showValidation && status !== 'Complete'
+                            ? 'Needs attention'
+                            : status}
+                        </span>
+                      </button>
+                    ),
+                  )}
+                </div>
+              </div>
+              <div className="ff-consideration-heart" aria-hidden="true">
+                <Heart />
+              </div>
+            </section>
+          )}
+
+          {step === 2 && !considerationOverview && (
             <div
               className={`ff-active-screen ${showValidation ? 'has-error' : ''}`}
             >
@@ -2552,7 +2672,10 @@ export default function FriendsFirst() {
 
           <footer className="ff-footer">
             <Button variant="outline" size="lg" onClick={goBack}>
-              {step === 1 && !aboutOverview && currentSectionQuestion === 1
+              {(step === 1 && !aboutOverview && currentSectionQuestion === 1) ||
+              (step === 2 &&
+                !considerationOverview &&
+                currentSectionQuestion === 1)
                 ? 'Back to sections'
                 : 'Back'}
             </Button>
@@ -2561,15 +2684,23 @@ export default function FriendsFirst() {
                 <Check />{' '}
                 {loaded ? 'Saved on this device' : 'Loading responses'}
               </span>
-              {step < 9 && !(step === 1 && aboutOverview && !canContinue) ? (
+              {step < 9 &&
+              !(step === 1 && aboutOverview && !canContinue) &&
+              !(step === 2 && considerationOverview && !canContinue) ? (
                 <Button
                   className={
-                    step === 1 && aboutOverview ? 'ff-about-next' : undefined
+                    (step === 1 && aboutOverview) ||
+                    (step === 2 && considerationOverview)
+                      ? 'ff-about-next'
+                      : undefined
                   }
                   size="lg"
                   onClick={continueForward}
                 >
-                  {step === 1 && aboutOverview ? 'NEXT' : 'Continue'}
+                  {(step === 1 && aboutOverview) ||
+                  (step === 2 && considerationOverview)
+                    ? 'NEXT'
+                    : 'Continue'}
                 </Button>
               ) : step === 9 ? (
                 <Button size="lg" onClick={completeSurvey}>
@@ -2579,8 +2710,9 @@ export default function FriendsFirst() {
             </div>
             {showValidation && !canContinue && step > 0 && (
               <p className="ff-validation">
-                {step === 1 && aboutOverview
-                  ? 'Complete each About You section before continuing. Choose a section marked Needs attention.'
+                {(step === 1 && aboutOverview) ||
+                (step === 2 && considerationOverview)
+                  ? `Complete each ${step === 1 ? 'About You' : 'Consideration Filters'} section before continuing. Choose a section marked Needs attention.`
                   : 'Complete this question before continuing. We moved focus to the response that needs attention.'}
               </p>
             )}

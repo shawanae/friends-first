@@ -198,6 +198,59 @@
   color: #fff8ee;
   font-size: clamp(16px, 1.6vw, 21px);
 }
+.ff-consideration-frame {
+  position: relative;
+  padding-right: clamp(28px, 7vw, 88px);
+  padding-left: clamp(28px, 7vw, 88px);
+}
+.ff-consideration-theme .ff-form {
+  width: min(1280px, calc(100% - 70px));
+}
+.ff-consideration-heading {
+  margin-bottom: 26px;
+}
+.ff-consideration-heading h2 {
+  display: block;
+  max-width: 980px;
+  margin-inline: auto;
+  font-size: clamp(44px, 5.2vw, 70px);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+}
+.ff-consideration-heading h2 span {
+  display: block;
+  white-space: nowrap;
+}
+.ff-consideration-heading p {
+  font-size: clamp(15px, 1.5vw, 20px);
+}
+.ff-consideration-heart {
+  position: absolute;
+  bottom: -30px;
+  left: -20px;
+  display: grid;
+  width: 108px;
+  height: 92px;
+  place-items: center;
+  border-radius: 22px;
+  background: #fff8ee;
+}
+.ff-consideration-heart::after {
+  position: absolute;
+  top: calc(100% - 2px);
+  left: 20px;
+  border-width: 18px 18px 0 0;
+  border-style: solid;
+  border-color: #fff8ee transparent transparent;
+  content: '';
+}
+.ff-consideration-heart svg {
+  width: 52px;
+  height: 52px;
+  color: #10040b !important;
+  fill: #10040b;
+  stroke: #10040b;
+}
 .ff-about-theme .ff-about-overview {
   min-height: 0;
 }
@@ -488,6 +541,24 @@
   }
   .ff-about-heading h2 {
     font-size: 43px;
+  }
+  .ff-consideration-heading h2 {
+    font-size: clamp(37px, 10vw, 52px);
+    line-height: 1;
+  }
+  .ff-consideration-heading h2 span {
+    white-space: normal;
+  }
+  .ff-consideration-heart {
+    bottom: -24px;
+    left: 8px;
+    width: 76px;
+    height: 66px;
+    border-radius: 17px;
+  }
+  .ff-consideration-heart svg {
+    width: 36px;
+    height: 36px;
   }
   .ff-about-theme .ff-about-section-grid {
     grid-template-columns: 1fr;
