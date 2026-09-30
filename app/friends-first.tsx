@@ -583,6 +583,13 @@ const aboutScreens = [
   'Family & Pets',
 ] as const;
 
+const aboutSections = [
+  'Basics',
+  'Identity',
+  'Lifestyle',
+  'Family & Pets',
+] as const;
+
 const considerationScreens = [
   'Basics',
   'Basics',
@@ -1343,6 +1350,7 @@ function ConsiderationScreen({
 export default function FriendsFirst() {
   const [step, setStep] = useState(0);
   const [substep, setSubstep] = useState(0);
+  const [aboutOverview, setAboutOverview] = useState(true);
   const [answers, setAnswers] = useState<Answers>(blankAnswers);
   const [loaded, setLoaded] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -1398,11 +1406,14 @@ export default function FriendsFirst() {
 
   const canContinue = useMemo(() => {
     if (step === 0) return true;
-    if (step === 1) return aboutScreenComplete(substep, answers);
+    if (step === 1)
+      return aboutOverview
+        ? moduleComplete(1, answers)
+        : aboutScreenComplete(substep, answers);
     if (step === 2) return considerationScreenComplete(substep, answers);
     if (step >= 3 && step <= 8) return moduleComplete(step, answers);
     return true;
-  }, [answers, step, substep]);
+  }, [aboutOverview, answers, step, substep]);
 
   const focusCurrentQuestion = () =>
     requestAnimationFrame(() => {
@@ -1416,12 +1427,28 @@ export default function FriendsFirst() {
   const continueForward = () => {
     if (!canContinue) {
       setShowValidation(true);
-      focusCurrentQuestion();
+      if (!(step === 1 && aboutOverview)) focusCurrentQuestion();
       return;
     }
     setShowValidation(false);
+    if (step === 1 && aboutOverview) {
+      setStep(2);
+      setSubstep(0);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (step === 1 && substep < aboutScreens.length - 1) {
-      setSubstep((value) => value + 1);
+      const nextSubstep = substep + 1;
+      if (aboutScreens[nextSubstep] !== aboutScreens[substep]) {
+        setAboutOverview(true);
+      } else {
+        setSubstep(nextSubstep);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (step === 1) {
+      setAboutOverview(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -1437,14 +1464,26 @@ export default function FriendsFirst() {
   };
   const goBack = () => {
     setShowValidation(false);
-    if ((step === 1 || step === 2) && substep > 0) {
+    if (step === 1 && !aboutOverview) {
+      const sectionStart = aboutScreens.findIndex(
+        (section) => section === aboutScreens[substep],
+      );
+      if (substep > sectionStart) {
+        setSubstep((value) => value - 1);
+      } else {
+        setAboutOverview(true);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (step === 2 && substep > 0) {
       setSubstep((value) => value - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     if (step === 2) {
       setStep(1);
-      setSubstep(aboutScreens.length - 1);
+      setAboutOverview(true);
     } else if (step === 3) {
       setStep(2);
       setSubstep(considerationScreens.length - 1);
@@ -1471,6 +1510,7 @@ export default function FriendsFirst() {
             : 0;
       setStep(incompleteModule);
       setSubstep(Math.max(0, missingScreen));
+      if (incompleteModule === 1) setAboutOverview(false);
       setShowValidation(true);
       focusCurrentQuestion();
       return;
@@ -1488,6 +1528,7 @@ export default function FriendsFirst() {
     setAnswers(blankAnswers);
     setStep(0);
     setSubstep(0);
+    setAboutOverview(true);
     setShowValidation(false);
     setCompleted(false);
   };
@@ -1496,6 +1537,50 @@ export default function FriendsFirst() {
   const screenSections =
     step === 1 ? aboutScreens : step === 2 ? considerationScreens : null;
   const currentSection = screenSections?.[substep];
+  const currentSectionScreens = currentSection
+    ? screenSections
+        ?.map((section, index) => (section === currentSection ? index : -1))
+        .filter((index) => index >= 0) || []
+    : [];
+  const currentSectionQuestion = currentSectionScreens.indexOf(substep) + 1;
+  const aboutSectionProgress = aboutSections.map((section) => {
+    const screens = aboutScreens
+      .map((screen, index) => (screen === section ? index : -1))
+      .filter((index) => index >= 0);
+    const completedScreens = screens.filter((index) =>
+      aboutScreenComplete(index, answers),
+    );
+    return {
+      section,
+      screens,
+      completed: completedScreens.length,
+      status:
+        completedScreens.length === screens.length
+          ? 'Complete'
+          : completedScreens.length > 0
+            ? 'In progress'
+            : 'Not started',
+    };
+  });
+  const screenProgress =
+    step === 1
+      ? Math.round(
+          (aboutSectionProgress.reduce(
+            (total, section) => total + section.completed,
+            0,
+          ) /
+            aboutScreens.length) *
+            100,
+        )
+      : step === 2
+        ? Math.round(
+            (considerationScreens.filter((_, index) =>
+              considerationScreenComplete(index, answers),
+            ).length /
+              considerationScreens.length) *
+              100,
+          )
+        : Math.round((step / 9) * 100);
 
   if (completed)
     return (
@@ -1546,18 +1631,30 @@ export default function FriendsFirst() {
             <span>
               {step === 0
                 ? 'Welcome'
+                : step === 1 && aboutOverview
+                  ? 'About you'
                 : screenSections
-                  ? `Question ${substep + 1} of ${screenSections.length}`
+                  ? step === 1
+                    ? `Question ${currentSectionQuestion} of ${currentSectionScreens.length}`
+                    : `Question ${substep + 1} of ${screenSections.length}`
                   : 'Survey progress'}
             </span>
-            <span>{Math.round((step / 9) * 100)}% complete</span>
+            <span>{screenProgress}% complete</span>
           </div>
-          <Progress value={(step / 9) * 100} />
+          <Progress value={screenProgress} />
         </div>
         <div className="ff-form">
           <header className="ff-heading">
-            <h2>{currentSection || modules[step][0]}</h2>
-            <p>{modules[step][2]}</p>
+            <h2>
+              {step === 1 && aboutOverview
+                ? 'About you'
+                : currentSection || modules[step][0]}
+            </h2>
+            <p>
+              {step === 1 && aboutOverview
+                ? 'Choose a section. You can complete them in any order.'
+                : modules[step][2]}
+            </p>
           </header>
 
           {step === 0 && (
@@ -1585,7 +1682,45 @@ export default function FriendsFirst() {
             </div>
           )}
 
-          {step === 1 && (
+          {step === 1 && aboutOverview && (
+            <section
+              className="ff-about-overview"
+              aria-label="About you sections"
+            >
+              <div className="ff-about-section-grid">
+                {aboutSectionProgress.map(
+                  ({ section, screens, completed: done, status }) => (
+                    <button
+                      className="ff-about-section"
+                      type="button"
+                      key={section}
+                      onClick={() => {
+                        const firstIncomplete = screens.find(
+                          (index) => !aboutScreenComplete(index, answers),
+                        );
+                        setSubstep(firstIncomplete ?? screens[0]);
+                        setAboutOverview(false);
+                        setShowValidation(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      <span className="ff-about-section-title">{section}</span>
+                      <span className="ff-about-section-count">
+                        {done} of {screens.length} answered
+                      </span>
+                      <span className="ff-about-section-status">
+                        {showValidation && status !== 'Complete'
+                          ? 'Needs attention'
+                          : status}
+                      </span>
+                    </button>
+                  ),
+                )}
+              </div>
+            </section>
+          )}
+
+          {step === 1 && !aboutOverview && (
             <div
               className={`ff-active-screen ${showValidation ? 'has-error' : ''}`}
             >
@@ -2276,7 +2411,9 @@ export default function FriendsFirst() {
               onClick={goBack}
               disabled={step === 0}
             >
-              Back
+              {step === 1 && !aboutOverview && currentSectionQuestion === 1
+                ? 'Back to sections'
+                : 'Back'}
             </Button>
             <div>
               <span className="ff-save-note">
@@ -2285,7 +2422,9 @@ export default function FriendsFirst() {
               </span>
               {step < 9 ? (
                 <Button size="lg" onClick={continueForward}>
-                  Continue
+                  {step === 1 && aboutOverview
+                    ? 'Continue to consideration filters'
+                    : 'Continue'}
                 </Button>
               ) : (
                 <Button size="lg" onClick={completeSurvey}>
@@ -2295,8 +2434,9 @@ export default function FriendsFirst() {
             </div>
             {showValidation && !canContinue && step > 0 && (
               <p className="ff-validation">
-                Complete this question before continuing. We moved focus to
-                the response that needs attention.
+                {step === 1 && aboutOverview
+                  ? 'Complete each About You section before continuing. Choose a section marked Needs attention.'
+                  : 'Complete this question before continuing. We moved focus to the response that needs attention.'}
               </p>
             )}
           </footer>

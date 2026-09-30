@@ -48,6 +48,16 @@
 .ff-review-section dt{text-transform:none;letter-spacing:0}
 .ff-success{background:#fff}
 .ff-success-card h1{font-weight:600;letter-spacing:0}
+.ff-about-overview{min-height:360px}
+.ff-about-section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.ff-about-section{display:grid;min-height:160px;align-content:center;gap:9px;padding:26px;border:1px solid #b8b8b8;border-radius:14px;color:#000;background:#fff;text-align:center;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}
+.ff-about-section:hover,.ff-about-section:focus-visible{border-color:#000;box-shadow:0 0 0 1px #000;transform:translateY(-2px);outline:none}
+.ff-about-section-title{font-size:22px;font-weight:650}
+.ff-about-section-count{font-size:15px}
+.ff-about-section-status{font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:4px}
+.ff-active-screen .ff-question{animation:ff-question-in .2s ease-out}
+@keyframes ff-question-in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
+@media(max-width:620px){.ff-about-section-grid{grid-template-columns:1fr}.ff-about-section{min-height:128px}.ff-footer [data-slot=button]{width:100%}.ff-footer>div{width:100%;margin-left:0;flex-wrap:wrap}.ff-footer>div [data-slot=button]{order:-1}}
 @media print{body{background:#fff!important}.ff-shell>.ff-sidebar,.ff-shell>.ff-main,.ff-success>.ff-success-card{display:none!important}.ff-success{display:block;padding:0;background:#fff}.ff-print-summary{display:block!important;color:#222;background:#fff}.ff-print-title{margin-bottom:24px}.ff-print-title h1{margin:0 0 4px;font:700 30px Georgia,serif}.ff-print-title p{margin:0;color:#666;font-size:12px}.ff-review-section{break-inside:avoid;margin-bottom:18px;border:0;border-radius:0}.ff-review-section h3{padding:7px 0;border-bottom:2px solid #555;color:#222;background:none;font-size:17px}.ff-review-section dl{grid-template-columns:1fr 1fr}.ff-review-section dl>div{padding:7px 10px 7px 0}.ff-review-section dt{font-size:9px}.ff-review-section dd{font-size:11px}}
 
 @custom-variant dark (&:is(.dark *));
