@@ -2504,9 +2504,7 @@ export default function FriendsFirst() {
               </span>
               {step < 9 && !(step === 1 && aboutOverview && !canContinue) ? (
                 <Button size="lg" onClick={continueForward}>
-                  {step === 1 && aboutOverview
-                    ? 'Continue to consideration filters'
-                    : 'Continue'}
+                  {step === 1 && aboutOverview ? 'NEXT' : 'Continue'}
                 </Button>
               ) : step === 9 ? (
                 <Button size="lg" onClick={completeSurvey}>
