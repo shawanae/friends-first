@@ -37,12 +37,12 @@ const modules = [
     'Describe the people you would realistically consider dating.',
   ],
   [
-    'What you bring',
+    'Your Relationship Strengths',
     'Module 3',
     'Reflect on the strengths you bring to a relationship.',
   ],
   [
-    'What matters most',
+    'What Matters Most in a Partner',
     'Module 4',
     'Distribute importance across the qualities you value in a partner.',
   ],
@@ -376,14 +376,16 @@ function Allocator({
   items,
   value,
   onChange,
+  cardLayout = false,
 }: {
   items: string[];
   value: Points;
   onChange: (value: Points) => void;
+  cardLayout?: boolean;
 }) {
   const total = Object.values(value).reduce((sum, number) => sum + number, 0);
   return (
-    <div className="ff-allocator">
+    <div className={`ff-allocator ${cardLayout ? 'ff-allocator-cards' : ''}`}>
       <div
         className={`ff-points ${total === 100 ? 'is-complete' : total > 100 ? 'is-over' : ''}`}
       >
@@ -1867,7 +1869,7 @@ export default function FriendsFirst() {
 
   return (
     <main
-      className={`ff-shell ${step === 0 ? 'ff-privacy-theme' : step === 1 || step === 2 ? 'ff-about-theme' : ''} ${step === 2 ? 'ff-consideration-theme' : ''}`}
+      className={`ff-shell ${step === 0 ? 'ff-privacy-theme' : step >= 1 && step <= 3 ? 'ff-about-theme' : ''} ${step === 2 ? 'ff-consideration-theme' : ''} ${step === 3 ? 'ff-strengths-theme' : ''}`}
     >
       <ReviewSummary answers={answers} printable />
       <section className="ff-main" id="friends-first-top">
@@ -1881,7 +1883,7 @@ export default function FriendsFirst() {
                   : step === 2
                     ? 'Considerations'
                     : step === 3
-                      ? 'What Do You Bring?'
+                      ? 'Your Relationship Strengths'
                       : 'Survey progress'}
             </span>
             <span>{screenProgress}% complete</span>
@@ -2560,7 +2562,7 @@ export default function FriendsFirst() {
           )}
 
           {step === 3 && (
-            <div>
+            <section className="ff-strengths-frame">
               <div className="ff-instruction">
                 Imagine your three closest friends describing your strengths as
                 a romantic partner. Distribute exactly 100 points.
@@ -2569,8 +2571,9 @@ export default function FriendsFirst() {
                 items={selfTraits}
                 value={answers.selfPoints as Points}
                 onChange={(value) => setAnswer('selfPoints', value)}
+                cardLayout
               />
-            </div>
+            </section>
           )}
           {step === 4 && (
             <div>

@@ -412,6 +412,87 @@
   color: #000 !important;
   background: #fff;
 }
+.ff-strengths-theme .ff-heading {
+  margin-bottom: 30px;
+  text-align: center;
+}
+.ff-strengths-theme .ff-heading h2 {
+  font-family: 'Montserrat', 'Segoe UI', sans-serif !important;
+  font-size: clamp(42px, 5.5vw, 68px);
+  font-weight: 400;
+  line-height: 1;
+}
+.ff-strengths-frame {
+  padding: clamp(28px, 4vw, 48px);
+  border: 1.5px solid #fff8ee;
+  border-radius: 52px;
+}
+.ff-strengths-theme .ff-instruction {
+  max-width: 760px;
+  margin: 0 auto 28px;
+  padding: 18px 22px;
+  border: 1px solid #fff8ee;
+  border-radius: 18px;
+  color: #10040b !important;
+  background: #fff8ee;
+  text-align: center;
+  font-family: 'Manrope', 'Segoe UI', sans-serif !important;
+  line-height: 1.55;
+}
+.ff-strengths-theme .ff-allocator-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-points {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+  border: 1px solid #fff8ee;
+  color: #10040b !important;
+  background: #fff8ee;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-points * {
+  color: #10040b !important;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-points.is-complete {
+  background: #87e51c;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-points.is-over {
+  color: #fff8ee !important;
+  background: #9b483f;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-points.is-over * {
+  color: #fff8ee !important;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-trait {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 150px;
+  align-content: space-between;
+  gap: 22px;
+  padding: 24px;
+  border: 1.5px solid #fff8ee;
+  border-radius: 30px;
+  background: transparent;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-trait:focus-within {
+  box-shadow: 0 0 0 3px #fff8ee;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-trait > span {
+  font-family: 'Manrope', 'Segoe UI', sans-serif !important;
+  font-size: clamp(20px, 2.2vw, 30px);
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+}
+.ff-strengths-theme .ff-allocator-cards .ff-trait [data-slot='input'] {
+  width: min(140px, 100%);
+  height: 48px;
+  margin: 0 auto;
+  border-color: #fff8ee;
+  color: #10040b !important;
+  background: #fff8ee;
+  text-align: center;
+}
 .ff-about-theme .ff-footer {
   border-color: #fff8ee55;
 }
@@ -588,6 +669,17 @@
   }
   .ff-about-theme .ff-choice-grid.ff-two-column {
     grid-template-columns: 1fr;
+  }
+  .ff-strengths-frame {
+    padding: 28px 18px;
+    border-radius: 30px;
+  }
+  .ff-strengths-theme .ff-allocator-cards {
+    grid-template-columns: 1fr;
+  }
+  .ff-strengths-theme .ff-allocator-cards .ff-trait {
+    min-height: 132px;
+    border-radius: 26px;
   }
 }
 
