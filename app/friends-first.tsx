@@ -230,6 +230,19 @@ function Question({
   );
 }
 
+function NumberInput(props: React.ComponentProps<typeof Input>) {
+  return (
+    <Input
+      {...props}
+      type="number"
+      onWheel={(event) => {
+        props.onWheel?.(event);
+        if (!event.defaultPrevented) event.currentTarget.blur();
+      }}
+    />
+  );
+}
+
 function OptionLabel({ option }: { option: string }) {
   if (option !== AMERICAN_INDIAN_LABEL) return <span>{option}</span>;
   return (
@@ -335,7 +348,7 @@ function HeightFields({
     <div className="ff-inline-fields">
       <label>
         <span>Feet</span>
-        <Input
+        <NumberInput
           type="number"
           min="3"
           max="8"
@@ -347,7 +360,7 @@ function HeightFields({
       </label>
       <label>
         <span>Inches</span>
-        <Input
+        <NumberInput
           type="number"
           min="0"
           max="11"
@@ -389,22 +402,23 @@ function Allocator({
       {items.map((item) => (
         <label className="ff-trait" key={item}>
           <span>{item}</span>
-          <Input
+          <NumberInput
             aria-label={`${item} points`}
             type="number"
             min="0"
             max="100"
             inputMode="numeric"
-            value={value[item] || 0}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                [item]: Math.max(
+            value={value[item] ?? ''}
+            onChange={(event) => {
+              const next = { ...value };
+              if (event.target.value === '') delete next[item];
+              else
+                next[item] = Math.max(
                   0,
                   Math.min(100, Number(event.target.value) || 0),
-                ),
-              })
-            }
+                );
+              onChange(next);
+            }}
           />
         </label>
       ))}
@@ -811,7 +825,7 @@ function AboutYouScreen({
 }) {
   const screens = [
     <Question key="age" title="What is your age?">
-      <Input
+      <NumberInput
         type="number"
         min="20"
         max="100"
@@ -1073,7 +1087,7 @@ function ConsiderationScreen({
       <div className="ff-inline-fields">
         <label>
           <span>Minimum age</span>
-          <Input
+          <NumberInput
             type="number"
             min="20"
             max="100"
@@ -1083,7 +1097,7 @@ function ConsiderationScreen({
         </label>
         <label>
           <span>Maximum age</span>
-          <Input
+          <NumberInput
             type="number"
             min="20"
             max="100"
@@ -1986,7 +2000,7 @@ export default function FriendsFirst() {
             <div className="ff-stack">
               <div className="ff-two-col">
                 <Question title="What is your age?">
-                  <Input
+                  <NumberInput
                     type="number"
                     min="20"
                     max="100"
@@ -2208,7 +2222,7 @@ export default function FriendsFirst() {
                 <div className="ff-inline-fields">
                   <label>
                     <span>Minimum age</span>
-                    <Input
+                    <NumberInput
                       type="number"
                       min="20"
                       max="100"
@@ -2220,7 +2234,7 @@ export default function FriendsFirst() {
                   </label>
                   <label>
                     <span>Maximum age</span>
-                    <Input
+                    <NumberInput
                       type="number"
                       min="20"
                       max="100"
