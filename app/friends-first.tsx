@@ -11,11 +11,13 @@ import {
 import {
   Check,
   FileDown,
-  Heart,
   HeartHandshake,
   Info,
+  Minus,
+  Plus,
   Trash2,
   UserRound,
+  Waves,
 } from 'lucide-react';
 import {
   buildFriendsFirstPdf,
@@ -43,7 +45,7 @@ const modules = [
     'Tell us about who you are and the life you currently lead.',
   ],
   [
-    'Considerations',
+    'Your Dating Pool',
     'Module 2',
     'Describe the people you would realistically consider dating.',
   ],
@@ -58,7 +60,7 @@ const modules = [
     'Distribute importance across the qualities you value in a partner.',
   ],
   [
-    'Your Appeal',
+    'Through Their Eyes',
     'Module 5',
     'Consider what your ideal partner might value in you.',
   ],
@@ -94,6 +96,10 @@ const raceOptions = [
   'White',
   'Other',
 ];
+const considerationRaceOptions = [
+  ...raceOptions,
+  'People of any racial/ethnic group',
+];
 const educationOptions = [
   'Less than High School',
   'High School Diploma/GED',
@@ -112,11 +118,13 @@ const religionOptions = [
   'Muslim',
   'Pagan',
   'Sikh',
-  'Spiritual but not Religious',
+  'Spiritual but not religious',
   'Nothing in particular',
   'Other',
 ];
-const practicedReligionOptions = [
+const considerationReligionOptions = [
+  'Agnostic',
+  'Atheist',
   'Buddhist',
   'Christian',
   'Hindu',
@@ -124,17 +132,27 @@ const practicedReligionOptions = [
   'Muslim',
   'Pagan',
   'Sikh',
-  'Spiritual but not Religious',
+  'Spiritual but not religious',
+  'Nothing in particular',
   'Other',
+  'Any religion, spirituality, or worldview',
 ];
 const politicalOptions = [
-  'Very Conservative',
-  'Conservative',
-  'Moderate',
-  'Liberal',
-  'Very Liberal',
-  'Leftist',
-  'Apolitical',
+  'Society would benefit from significant social, political, and economic reforms.',
+  'Society should continue progressing while maintaining strong institutions and stability.',
+  'Practical solutions are more important than political ideology or party affiliation.',
+  'Government should generally play a limited role, with greater emphasis on personal responsibility and individual freedom.',
+  'Traditional values and institutions should play an important role in shaping society.',
+  'My views are not well represented by these statements.',
+  'Prefer not to say.',
+];
+const considerationPoliticalOptions = [
+  'Prefers significant social, political, and economic reform',
+  'Supports gradual progress while maintaining established institutions',
+  'Values practical solutions over political ideology',
+  'Prefers limited government and greater individual responsibility',
+  'Emphasizes traditional values and institutions',
+  "My partner's political outlook is not important to me",
   'Other',
 ];
 const frequencyOptions = ['Yes', 'Sometimes', 'Rarely', 'No'];
@@ -143,7 +161,7 @@ const importanceOptions = [
   'Very Important',
   'Moderately Important',
   'Slight Preference',
-  'No Preference',
+  'Not Important',
 ];
 const selfTraits = [
   'Kindness',
@@ -299,6 +317,7 @@ function Choices({
 }) {
   const autoAdvance = useContext(AutoAdvanceContext);
   const selected = Array.isArray(value) ? value : [];
+  const exclusiveSelected = Boolean(exclusive && selected.includes(exclusive));
   const isYesNo =
     !multi &&
     options.length === 2 &&
@@ -310,13 +329,15 @@ function Choices({
       <div className={layoutClass}>
         {options.map((option) => {
           const active = selected.includes(option);
+          const disabled = exclusiveSelected && option !== exclusive;
           return (
             <label
-              className={`ff-choice ${active ? 'is-selected' : ''}`}
+              className={`ff-choice ${active ? 'is-selected' : ''} ${disabled ? 'is-disabled' : ''}`}
               key={option}
             >
               <Checkbox
                 checked={active}
+                disabled={disabled}
                 onCheckedChange={() => {
                   if (active)
                     return onChange(selected.filter((item) => item !== option));
@@ -357,16 +378,6 @@ function Choices({
   );
 }
 
-const tradeoffScaleLabels = [
-  'Definitely',
-  'Probably',
-  'Slightly',
-  'Equal',
-  'Slightly',
-  'Probably',
-  'Definitely',
-] as const;
-
 function TradeoffScale({
   value,
   onChange,
@@ -374,6 +385,10 @@ function TradeoffScale({
   value?: AnswerValue;
   onChange: (value: string) => void;
 }) {
+  const selectedIndex =
+    typeof value === 'string' ? responseScale.indexOf(value) : -1;
+  const sliderValue = selectedIndex >= 0 ? selectedIndex : 3;
+
   return (
     <fieldset className="ff-tradeoff-response">
       <legend className="ff-visually-hidden">
@@ -384,26 +399,47 @@ function TradeoffScale({
         <span>Equal preference</span>
         <span>Person B</span>
       </div>
-      <RadioGroup
-        value={typeof value === 'string' ? value : ''}
-        onValueChange={onChange}
-        className="ff-decision-scale"
-      >
+      <div className="ff-slider-wrap">
+        <div className="ff-slider-dots" aria-hidden="true">
+          {responseScale.map((option) => (
+            <span key={option} />
+          ))}
+        </div>
+        <input
+          className={`ff-decision-slider ${selectedIndex >= 0 ? 'has-value' : ''}`}
+          type="range"
+          min="0"
+          max="6"
+          step="1"
+          value={sliderValue}
+          aria-label="Partner preference"
+          aria-valuetext={
+            selectedIndex >= 0
+              ? responseScale[selectedIndex]
+              : 'No choice selected'
+          }
+          onChange={(event) =>
+            onChange(responseScale[Number(event.currentTarget.value)])
+          }
+        />
+      </div>
+      <div className="ff-slider-labels">
         {responseScale.map((option, index) => (
-          <label
-            className={`ff-scale-choice ${value === option ? 'is-selected' : ''}`}
+          <button
+            type="button"
+            className={selectedIndex === index ? 'is-selected' : ''}
             key={option}
+            onClick={() => onChange(option)}
           >
-            <RadioGroupItem value={option} aria-label={option} />
-            <span className="ff-scale-short" aria-hidden="true">
-              {tradeoffScaleLabels[index]}
-            </span>
-            <span className="ff-scale-full" aria-hidden="true">
-              {option}
-            </span>
-          </label>
+            {option}
+          </button>
         ))}
-      </RadioGroup>
+      </div>
+      <p className="ff-slider-value" aria-live="polite">
+        {selectedIndex >= 0
+          ? responseScale[selectedIndex]
+          : 'Choose a position'}
+      </p>
     </fieldset>
   );
 }
@@ -419,7 +455,6 @@ function HeightFields({
   setAnswer: (key: string, value: AnswerValue) => void;
   startAtZero?: boolean;
 }) {
-  const initialValue = startAtZero ? '0' : '';
   return (
     <div className="ff-inline-fields">
       <label>
@@ -429,7 +464,7 @@ function HeightFields({
           min="3"
           max="8"
           inputMode="numeric"
-          value={(answers[`${prefix}Feet`] as string) || initialValue}
+          value={(answers[`${prefix}Feet`] as string) || ''}
           onChange={(event) => setAnswer(`${prefix}Feet`, event.target.value)}
           placeholder={startAtZero ? '0' : undefined}
         />
@@ -441,7 +476,7 @@ function HeightFields({
           min="0"
           max="11"
           inputMode="numeric"
-          value={(answers[`${prefix}Inches`] as string) || initialValue}
+          value={(answers[`${prefix}Inches`] as string) || ''}
           onChange={(event) => setAnswer(`${prefix}Inches`, event.target.value)}
           placeholder={startAtZero ? '0' : undefined}
         />
@@ -462,43 +497,65 @@ function Allocator({
   cardLayout?: boolean;
 }) {
   const total = Object.values(value).reduce((sum, number) => sum + number, 0);
+  const changeItem = (item: string, change: number) => {
+    const next = { ...value };
+    const nextValue = Math.max(0, Math.min(100, (next[item] ?? 0) + change));
+    if (nextValue === 0) delete next[item];
+    else next[item] = nextValue;
+    onChange(next);
+  };
+
   return (
     <div className={`ff-allocator ${cardLayout ? 'ff-allocator-cards' : ''}`}>
       <div
         className={`ff-points ${total === 100 ? 'is-complete' : total > 100 ? 'is-over' : ''}`}
+        aria-live="polite"
       >
-        <span>
-          {total === 100 && <Check />}{' '}
-          {total === 100
-            ? 'Exactly 100 points'
-            : total > 100
-              ? `${total - 100} points over`
-              : `${100 - total} points remaining`}
-        </span>
-        <strong>{total}/100</strong>
+        <strong>
+          {total === 100 && <Check aria-hidden="true" />}
+          {total}/100 Points Allocated
+        </strong>
       </div>
       {items.map((item) => (
-        <label className="ff-trait" key={item}>
+        <div className="ff-trait" key={item}>
           <span>{item}</span>
-          <NumberInput
-            aria-label={`${item} points`}
-            type="number"
-            min="0"
-            max="100"
-            inputMode="numeric"
-            value={value[item] ?? ''}
-            onChange={(event) => {
-              const next = { ...value };
-              if (event.target.value === '') delete next[item];
-              else
-                next[item] = Math.max(
-                  0,
-                  Math.min(100, Number(event.target.value) || 0),
-                );
-              onChange(next);
-            }}
-          />
-        </label>
+          <div className="ff-point-controls">
+            <button
+              type="button"
+              aria-label={`Remove one point from ${item}`}
+              onClick={() => changeItem(item, -1)}
+              disabled={(value[item] ?? 0) === 0}
+            >
+              <Minus aria-hidden="true" />
+            </button>
+            <NumberInput
+              aria-label={`${item} points`}
+              type="number"
+              min="0"
+              max="100"
+              inputMode="numeric"
+              value={value[item] ?? ''}
+              onChange={(event) => {
+                const next = { ...value };
+                if (event.target.value === '') delete next[item];
+                else
+                  next[item] = Math.max(
+                    0,
+                    Math.min(100, Number(event.target.value) || 0),
+                  );
+                onChange(next);
+              }}
+            />
+            <button
+              type="button"
+              aria-label={`Add one point to ${item}`}
+              onClick={() => changeItem(item, 1)}
+              disabled={(value[item] ?? 0) === 100}
+            >
+              <Plus aria-hidden="true" />
+            </button>
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -533,7 +590,7 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
     ],
   ],
   [
-    'Considerations',
+    'Your Dating Pool',
     [
       ['ageRange', 'Age range'],
       ['heightRange', 'Height range'],
@@ -541,13 +598,10 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
       ['dateGenderOther', 'Other gender considered'],
       ['dateRace', 'Racial/ethnic groups considered'],
       ['raceImportance', 'Importance of racial/ethnic background'],
-      [
-        'dateReligionPractice',
-        'Would date someone religious or with a spiritual practice',
-      ],
       ['dateReligion', 'Religions/worldviews considered'],
       ['religionImportance', 'Importance of worldview alignment'],
       ['datePolitics', 'Political viewpoints considered'],
+      ['datePoliticsOther', 'Other political outlook considered'],
       ['politicsImportance', 'Importance of political alignment'],
       ['minEducation', 'Minimum education'],
       ['idealEducation', 'Ideal education'],
@@ -568,17 +622,17 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
   ['Your Strengths', [['selfPoints', 'Strength allocation']]],
   ['What Matters Most', [['partnerPoints', 'Ideal-partner allocation']]],
   [
-    'Your Appeal',
+    'Through Their Eyes',
     [['chooseMe', 'Three qualities an ideal partner might choose']],
   ],
   [
     'Who Would You Choose',
     [
-      ['scenario0', 'Scenario 1'],
-      ['scenario1', 'Scenario 2'],
-      ['scenario2', 'Scenario 3'],
-      ['scenario3', 'Scenario 4'],
-      ['scenario4', 'Scenario 5'],
+      ['scenario0', 'Challenge 1'],
+      ['scenario1', 'Challenge 2'],
+      ['scenario2', 'Challenge 3'],
+      ['scenario3', 'Challenge 4'],
+      ['scenario4', 'Challenge 5'],
     ],
   ],
   [
@@ -604,14 +658,14 @@ const pdfQuestionLabels: Record<string, string> = {
     'How would you describe your religion, spiritual practice, and or worldview?',
   religionOther:
     'Please specify your religion, spiritual practice, or worldview.',
-  politics: 'What are your political views?',
+  politics: 'Which statement best reflects your overall political outlook?',
   children: 'Do you have children?',
   futureChildren: 'Would you want children in the future?',
   alcohol: 'How do you currently use alcohol?',
-  nicotine: 'Do you currently smoke or use nicotine products?',
+  nicotine: 'Do you currently use nicotine products?',
   nicotineTypes: 'Which nicotine products do you use?',
   cannabis: 'Do you use cannabis?',
-  cannabisTypes: 'Which forms do you use?',
+  cannabisTypes: 'Which cannabis products do you use?',
   exercise: 'How would you describe your current exercise habits?',
   lifeValues:
     'Below is a list of common life values. Select the five values that are most important to you and that most strongly influence how you live your life.',
@@ -622,32 +676,37 @@ const pdfQuestionLabels: Record<string, string> = {
   heightRange: 'What height range would you consider dating?',
   dateGender: 'What genders would you consider dating?',
   dateGenderOther: 'Please specify the other gender you would consider dating.',
-  dateRace: 'Which racial or ethnic groups would you consider dating?',
+  dateRace: 'Which racial/ethnic groups would you consider dating people from?',
   raceImportance:
-    'How important is racial or ethnic background when choosing a partner?',
-  dateReligionPractice:
-    'Would you date someone religious and or has a spiritual practice?',
+    'How important is racial/ethnic background to you when choosing a partner?',
   dateReligion:
-    'Which religious or worldview identities would you consider dating?',
-  religionImportance: 'How important is religious or worldview alignment?',
-  datePolitics: 'Which political viewpoints would you consider dating?',
+    'Which religious, spiritual, and or worldview identities would you consider in a dating partner?',
+  religionImportance:
+    'How important is a potential partner’s religion, spirituality, or worldview when deciding whether to date them?',
+  datePolitics: 'Which political outlooks would you consider in a partner?',
+  datePoliticsOther: 'Please specify the other political outlook.',
   politicsImportance: 'How important is political alignment?',
-  minEducation: 'What is the minimum education level you would consider?',
+  minEducation:
+    'What is the minimum completed education level you would consider in a potential partner?',
   idealEducation: 'What is your ideal education level for a partner?',
   dateChildren: 'Would you date someone with children?',
-  partnerChildren: 'Are you looking for someone who wants children?',
-  dateAlcohol: 'Which alcohol-use habits would you consider?',
-  alcoholImportance: 'How important is a potential partner’s alcohol use?',
-  dateNicotine: 'Which nicotine-use habits would you consider?',
-  nicotineImportance: 'How important is a potential partner’s nicotine use?',
-  dateCannabis: 'Which cannabis-use habits would you consider?',
-  cannabisImportance: 'How important is a potential partner’s cannabis use?',
-  dateExercise: 'What exercise habits would you consider?',
+  partnerChildren:
+    'Are you looking for someone who wants children in the future?',
+  dateAlcohol: 'Which alcohol use habits would you consider in a partner?',
+  alcoholImportance:
+    'How important is a potential partner’s alcohol use habits?',
+  dateNicotine: 'Which nicotine use habits would you consider in a partner?',
+  nicotineImportance:
+    'How important is a potential partner’s nicotine use habits?',
+  dateCannabis: 'Which cannabis use habits would you consider in a partner?',
+  cannabisImportance:
+    'How important is a potential partner’s cannabis use habits?',
+  dateExercise: 'What exercise habits would you consider in a partner?',
   exerciseImportance:
     'How important are a potential partner’s exercise habits?',
-  datePets: 'Which pet ownership situations would you consider?',
+  datePets: 'Which pet ownership situations would you consider in a partner?',
   petsImportance:
-    'How important is a potential partner’s pet ownership situation?',
+    "How important is a potential partner's pet ownership situation when deciding whether to date them?",
   selfPoints:
     'Distribute 100 points across the traits based on how strongly each trait reflects who you are.',
   partnerPoints:
@@ -655,11 +714,10 @@ const pdfQuestionLabels: Record<string, string> = {
   chooseMe:
     'Which three qualities would most likely make your ideal partner choose you?',
   keep5:
-    'Round 1: Keep Only 5 - You may keep only five of the following 8 traits.',
+    'Keep Only Five - You may keep only five of the following eight traits.',
   keep3:
-    'Round 2: Keep Only Three - Keep only three of the five previously selected traits.',
-  keep1:
-    'Round 3: Keep Only One - Keep only one of three previously selected traits.',
+    'Keep Only Three - Keep only three of the five previously selected traits.',
+  keep1: 'Keep Only One - Keep only one of three previously selected traits.',
 };
 
 function pdfQuestionLabel(key: string, fallback: string) {
@@ -667,7 +725,7 @@ function pdfQuestionLabel(key: string, fallback: string) {
     const index = Number(key.replace('scenario', ''));
     const scenario = scenarios[index];
     if (scenario)
-      return `Scenario ${index + 1} - Person A: ${scenario[0].join(', ')}. Person B: ${scenario[1].join(', ')}.`;
+      return `Challenge ${index + 1} - Partner A: ${scenario[0].join(', ')}. Partner B: ${scenario[1].join(', ')}.`;
   }
   return pdfQuestionLabels[key] || fallback;
 }
@@ -779,6 +837,36 @@ function migrateSavedAnswers(saved: Answers) {
       value === 'Reptiles' ? 'Reptile(s)' : value,
     );
   }
+  if (migrated.religion === 'Spiritual but not Religious')
+    migrated.religion = 'Spiritual but not religious';
+  if (Array.isArray(migrated.dateReligion)) {
+    migrated.dateReligion = (migrated.dateReligion as string[])
+      .map((value) =>
+        value === 'Spiritual but not Religious'
+          ? 'Spiritual but not religious'
+          : value,
+      )
+      .filter((value) => considerationReligionOptions.includes(value));
+  }
+  if (!politicalOptions.includes(migrated.politics as string))
+    delete migrated.politics;
+  if (Array.isArray(migrated.datePolitics)) {
+    migrated.datePolitics = (migrated.datePolitics as string[]).filter(
+      (value) => considerationPoliticalOptions.includes(value),
+    );
+  }
+  for (const key of [
+    'raceImportance',
+    'religionImportance',
+    'politicsImportance',
+    'alcoholImportance',
+    'nicotineImportance',
+    'cannabisImportance',
+    'exerciseImportance',
+    'petsImportance',
+  ]) {
+    if (migrated[key] === 'No Preference') migrated[key] = 'Not Important';
+  }
   if (!hasText(migrated.religion)) {
     if (
       migrated.agnosticAtheist === 'Agnostic' ||
@@ -790,6 +878,7 @@ function migrateSavedAnswers(saved: Answers) {
   }
   delete migrated.religionPractice;
   delete migrated.agnosticAtheist;
+  delete migrated.dateReligionPractice;
   return migrated;
 }
 
@@ -920,15 +1009,16 @@ function considerationScreenComplete(index: number, answers: Answers) {
       maxHeight >= minHeight,
     hasText(answers.minEducation),
     hasText(answers.idealEducation) && educationOkay,
-    hasText(answers.dateReligionPractice) &&
-      (answers.dateReligionPractice === 'No' || hasList(answers.dateReligion)),
+    hasList(answers.dateReligion),
     hasText(answers.religionImportance),
     hasList(answers.dateGender) &&
       (!(answers.dateGender as string[]).includes('Other') ||
         hasText(answers.dateGenderOther)),
     hasList(answers.dateRace),
     hasText(answers.raceImportance),
-    hasList(answers.datePolitics),
+    hasList(answers.datePolitics) &&
+      (!(answers.datePolitics as string[]).includes('Other') ||
+        hasText(answers.datePoliticsOther)),
     hasText(answers.politicsImportance),
     hasText(answers.dateChildren),
     hasText(answers.partnerChildren),
@@ -1060,7 +1150,7 @@ function AboutYouScreen({
         singleColumn
       />
     </Question>,
-    <div key="religion" className="ff-stack">
+    <div key="religion" className="ff-stack ff-religion-question">
       <Question title="How would you describe your religion, spiritual practice, and or worldview?">
         <Choices
           options={religionOptions}
@@ -1082,7 +1172,11 @@ function AboutYouScreen({
         </div>
       )}
     </div>,
-    <Question key="politics" title="What are your political views?">
+    <Question
+      key="politics"
+      title="Which statement best reflects your overall political outlook?"
+      description="Select the option that most closely aligns with your views."
+    >
       <Choices
         options={politicalOptions}
         value={answers.politics}
@@ -1103,7 +1197,7 @@ function AboutYouScreen({
       />
     </Question>,
     <div key="nicotine" className="ff-stack">
-      <Question title="Do you currently smoke or use nicotine products?">
+      <Question title="Do you currently use nicotine products?">
         <Choices
           options={frequencyOptions}
           value={answers.nicotine}
@@ -1144,7 +1238,7 @@ function AboutYouScreen({
       {answers.cannabis && answers.cannabis !== 'No' && (
         <div className="ff-follow-up">
           <Question
-            title="Which forms do you use?"
+            title="Which cannabis products do you use?"
             hint="Select all that apply."
           >
             <Choices
@@ -1176,7 +1270,8 @@ function AboutYouScreen({
     </Question>,
     <Question
       key="life-values"
-      title="Below is a list of common life values. Select the five values that are most important to you and that most strongly influence how you live your life."
+      title="Below is a list of common life values."
+      description="Select the five values that are most important to you and that most strongly influence how you live your life."
       hint={`${((answers.lifeValues as string[]) || []).length} of 5 selected`}
     >
       <Choices
@@ -1311,7 +1406,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="min-education"
-      title="What is the minimum education level you would consider?"
+      title="What is the minimum completed education level you would consider in a potential partner?"
     >
       <Choices
         options={educationOptions}
@@ -1331,35 +1426,23 @@ function ConsiderationScreen({
         singleColumn
       />
     </Question>,
-    <div key="date-religion" className="ff-stack">
-      <Question title="Would you date someone religious and or has a spiritual practice?">
-        <Choices
-          options={['Yes', 'No']}
-          value={answers.dateReligionPractice}
-          onChange={(value) => setAnswer('dateReligionPractice', value)}
-          singleColumn
-        />
-      </Question>
-      {answers.dateReligionPractice === 'Yes' && (
-        <div className="ff-follow-up">
-          <Question
-            title="Which religious or worldview identities would you consider dating?"
-            hint="Select all that apply."
-          >
-            <Choices
-              options={practicedReligionOptions}
-              value={answers.dateReligion}
-              onChange={(value) => setAnswer('dateReligion', value)}
-              multi
-              singleColumn
-            />
-          </Question>
-        </div>
-      )}
-    </div>,
+    <Question
+      key="date-religion"
+      title="Which religious, spiritual, and or worldview identities would you consider in a dating partner?"
+      hint="Select all that apply."
+    >
+      <Choices
+        options={considerationReligionOptions}
+        value={answers.dateReligion}
+        onChange={(value) => setAnswer('dateReligion', value)}
+        multi
+        exclusive="Any religion, spirituality, or worldview"
+        singleColumn
+      />
+    </Question>,
     <Question
       key="religion-importance"
-      title="How important is religious or worldview alignment?"
+      title="How important is a potential partner’s religion, spirituality, or worldview when deciding whether to date them?"
     >
       <Choices
         options={importanceOptions}
@@ -1404,20 +1487,21 @@ function ConsiderationScreen({
     </div>,
     <Question
       key="date-race"
-      title="Which racial or ethnic groups would you consider dating?"
+      title="Which racial/ethnic groups would you consider dating people from?"
       hint="Select all that apply."
     >
       <Choices
-        options={raceOptions}
+        options={considerationRaceOptions}
         value={answers.dateRace}
         onChange={(value) => setAnswer('dateRace', value)}
         multi
+        exclusive="People of any racial/ethnic group"
         singleColumn
       />
     </Question>,
     <Question
       key="race-importance"
-      title="How important is racial or ethnic background when choosing a partner?"
+      title="How important is racial/ethnic background to you when choosing a partner?"
     >
       <Choices
         options={importanceOptions}
@@ -1426,19 +1510,33 @@ function ConsiderationScreen({
         singleColumn
       />
     </Question>,
-    <Question
-      key="date-politics"
-      title="Which political viewpoints would you consider dating?"
-      hint="Select all that apply."
-    >
-      <Choices
-        options={politicalOptions}
-        value={answers.datePolitics}
-        onChange={(value) => setAnswer('datePolitics', value)}
-        multi
-        singleColumn
-      />
-    </Question>,
+    <div key="date-politics" className="ff-stack">
+      <Question
+        title="Which political outlooks would you consider in a partner?"
+        hint="Select all that apply."
+      >
+        <Choices
+          options={considerationPoliticalOptions}
+          value={answers.datePolitics}
+          onChange={(value) => setAnswer('datePolitics', value)}
+          multi
+          exclusive="My partner's political outlook is not important to me"
+          singleColumn
+        />
+      </Question>
+      {((answers.datePolitics as string[]) || []).includes('Other') && (
+        <div className="ff-follow-up">
+          <Question title="Please specify.">
+            <Input
+              value={(answers.datePoliticsOther as string) || ''}
+              onChange={(event) =>
+                setAnswer('datePoliticsOther', event.target.value)
+              }
+            />
+          </Question>
+        </div>
+      )}
+    </div>,
     <Question
       key="politics-importance"
       title="How important is political alignment?"
@@ -1459,7 +1557,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="partner-children"
-      title="Are you looking for someone who wants children?"
+      title="Are you looking for someone who wants children in the future?"
     >
       <Choices
         options={['Yes', 'No', 'No preference']}
@@ -1469,7 +1567,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="date-alcohol"
-      title="Which alcohol-use habits would you consider?"
+      title="Which alcohol use habits would you consider in a partner?"
       hint="Select all that apply."
     >
       <Choices
@@ -1489,7 +1587,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="alcohol-importance"
-      title="How important is a potential partner’s alcohol use?"
+      title="How important is a potential partner’s alcohol use habits?"
     >
       <Choices
         options={importanceOptions}
@@ -1500,7 +1598,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="date-nicotine"
-      title="Which nicotine-use habits would you consider?"
+      title="Which nicotine use habits would you consider in a partner?"
       hint="Select all that apply."
     >
       <Choices
@@ -1522,7 +1620,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="nicotine-importance"
-      title="How important is a potential partner’s nicotine use?"
+      title="How important is a potential partner’s nicotine use habits?"
     >
       <Choices
         options={importanceOptions}
@@ -1533,7 +1631,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="date-cannabis"
-      title="Which cannabis-use habits would you consider?"
+      title="Which cannabis use habits would you consider in a partner?"
       hint="Select all that apply."
     >
       <Choices
@@ -1555,7 +1653,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="cannabis-importance"
-      title="How important is a potential partner’s cannabis use?"
+      title="How important is a potential partner’s cannabis use habits?"
     >
       <Choices
         options={importanceOptions}
@@ -1566,7 +1664,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="date-exercise"
-      title="What exercise habits would you consider?"
+      title="What exercise habits would you consider in a partner?"
       hint="Select all that apply."
     >
       <Choices
@@ -1598,7 +1696,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="date-pets"
-      title="Which pet ownership situations would you consider?"
+      title="Which pet ownership situations would you consider in a partner?"
       hint="Select all that apply."
     >
       <Choices
@@ -1620,7 +1718,7 @@ function ConsiderationScreen({
     </Question>,
     <Question
       key="pets-importance"
-      title="How important is a potential partner’s pet ownership situation?"
+      title="How important is a potential partner's pet ownership situation when deciding whether to date them?"
     >
       <Choices
         options={importanceOptions}
@@ -1675,8 +1773,6 @@ export default function FriendsFirst() {
       if (key === 'gender' && value !== 'Prefer to Self-describe')
         clear('genderOther');
       if (key === 'religion' && value !== 'Other') clear('religionOther');
-      if (key === 'dateReligionPractice' && value === 'No')
-        clear('dateReligion');
       if (key === 'nicotine' && value === 'No') clear('nicotineTypes');
       if (key === 'cannabis' && value === 'No') clear('cannabisTypes');
       if (key === 'pets' && value === 'No') clear('petTypes', 'petOther');
@@ -1684,6 +1780,8 @@ export default function FriendsFirst() {
         clear('petOther');
       if (key === 'dateGender' && !(value as string[]).includes('Other'))
         clear('dateGenderOther');
+      if (key === 'datePolitics' && !(value as string[]).includes('Other'))
+        clear('datePoliticsOther');
       if (key === 'keep5') {
         const keep3 = ((next.keep3 as string[]) || []).filter((item) =>
           (value as string[]).includes(item),
@@ -1825,13 +1923,12 @@ export default function FriendsFirst() {
 
   const handleSingleChoiceSelection = (value: string) => {
     const revealsFollowUp =
-      (step === 1 &&
-        ((substep === 2 && value === 'Prefer to Self-describe') ||
-          (substep === 6 && value === 'Other') ||
-          (substep === 9 && value !== 'No') ||
-          (substep === 10 && value !== 'No') ||
-          (substep === 15 && value === 'Yes'))) ||
-      (step === 2 && substep === 5 && value === 'Yes');
+      step === 1 &&
+      ((substep === 2 && value === 'Prefer to Self-describe') ||
+        (substep === 6 && value === 'Other') ||
+        (substep === 9 && value !== 'No') ||
+        (substep === 10 && value !== 'No') ||
+        (substep === 15 && value === 'Yes'));
     if (revealsFollowUp) return;
 
     window.clearTimeout(autoAdvanceTimer.current);
@@ -2051,16 +2148,18 @@ export default function FriendsFirst() {
   if (showHome)
     return (
       <main className="ff-home">
-        <div className="ff-home-arch" aria-hidden="true" />
-        <h1>
-          <strong>Friends</strong> <span>First</span>
-        </h1>
+        <div className="ff-home-brand">
+          <div className="ff-home-arch" aria-hidden="true" />
+          <h1>
+            <strong>Friends</strong> <span>First</span>
+          </h1>
+        </div>
         <p className="ff-home-tagline">
           <span>Know what you want...</span>
           <span>Find it here</span>
         </p>
         <Button size="lg" variant="outline" onClick={() => setShowHome(false)}>
-          Start
+          Welcome
         </Button>
       </main>
     );
@@ -2119,13 +2218,13 @@ export default function FriendsFirst() {
                 : step === 1
                   ? 'About You'
                   : step === 2
-                    ? 'Considerations'
+                    ? 'Your Dating Pool'
                     : step === 3
                       ? 'Your Strengths'
                       : step === 4
                         ? 'What Matters Most'
                         : step === 5
-                          ? 'Your Appeal'
+                          ? 'Through Their Eyes'
                           : step === 6
                             ? 'Who Would You Choose'
                             : step === 7
@@ -2147,6 +2246,24 @@ export default function FriendsFirst() {
                     ? 'About You'
                     : currentSection || modules[step][0]}
                 </h2>
+                {step === 3 && (
+                  <p className="ff-section-subheading">
+                    What qualities define you most?
+                  </p>
+                )}
+                {step === 5 && (
+                  <p className="ff-section-subheading">
+                    Imagine your ideal partner is getting to know you. Which
+                    three qualities would most likely make your ideal partner
+                    choose you?
+                  </p>
+                )}
+                {step === 6 && (
+                  <p className="ff-section-subheading">
+                    If you could pursue only one of these people, who would you
+                    choose?
+                  </p>
+                )}
               </header>
             )}
 
@@ -2166,38 +2283,49 @@ export default function FriendsFirst() {
           )}
 
           {step === 1 && aboutOverview && (
-            <section className="ff-about-frame" aria-label="About You sections">
+            <section
+              className="ff-selection-screen"
+              aria-label="About You sections"
+            >
               <header className="ff-about-heading">
                 <h2>
                   About You <UserRound aria-hidden="true" />
                 </h2>
-                <p>Choose a section. You can complete them in any order.</p>
+                <p className="ff-section-subheading">
+                  Choose a section. You can complete them in any order.
+                </p>
               </header>
-              <div className="ff-about-overview">
-                <div className="ff-about-section-grid">
-                  {aboutSectionProgress.map(({ section, screens, status }) => (
-                    <button
-                      className={`ff-about-section is-${status.toLowerCase().replaceAll(' ', '-')}`}
-                      type="button"
-                      key={section}
-                      onClick={() => {
-                        const firstIncomplete = screens.find(
-                          (index) => !aboutScreenComplete(index, answers),
-                        );
-                        setSubstep(firstIncomplete ?? screens[0]);
-                        setAboutOverview(false);
-                        setShowValidation(false);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                    >
-                      <span className="ff-about-section-title">{section}</span>
-                      <span className="ff-about-section-status">
-                        {showValidation && status !== 'Complete'
-                          ? 'Needs attention'
-                          : status}
-                      </span>
-                    </button>
-                  ))}
+              <div className="ff-about-frame ff-selection-box">
+                <div className="ff-about-overview">
+                  <div className="ff-about-section-grid">
+                    {aboutSectionProgress.map(
+                      ({ section, screens, status }) => (
+                        <button
+                          className={`ff-about-section is-${status.toLowerCase().replaceAll(' ', '-')}`}
+                          type="button"
+                          key={section}
+                          onClick={() => {
+                            const firstIncomplete = screens.find(
+                              (index) => !aboutScreenComplete(index, answers),
+                            );
+                            setSubstep(firstIncomplete ?? screens[0]);
+                            setAboutOverview(false);
+                            setShowValidation(false);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          <span className="ff-about-section-title">
+                            {section}
+                          </span>
+                          <span className="ff-about-section-status">
+                            {showValidation && status !== 'Complete'
+                              ? 'Needs attention'
+                              : status}
+                          </span>
+                        </button>
+                      ),
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
@@ -2218,65 +2346,69 @@ export default function FriendsFirst() {
           )}
 
           {step === 2 && considerationIntro && (
-            <section className="ff-about-frame ff-consideration-intro">
+            <section className="ff-about-frame ff-consideration-intro ff-pool-frame">
               <header className="ff-about-heading ff-consideration-heading">
-                <h2>Who Would You Consider Dating?</h2>
+                <h2>Your Dating Pool</h2>
                 <p>
                   The following questions ask about the types of people you
-                  would realistically consider dating. Some categories ask you
-                  to select every option you would consider. Some also ask how
-                  important that preference is to you.
+                  would realistically consider dating.
+                </p>
+                <p>
+                  Some categories ask you to select every option you would
+                  consider. Some also ask how important that preference is to
+                  you.
                 </p>
               </header>
+              <Waves className="ff-pool-mark" aria-hidden="true" />
             </section>
           )}
 
           {step === 2 && considerationOverview && (
             <section
-              className="ff-about-frame ff-consideration-frame"
-              aria-label="Consideration filter sections"
+              className="ff-selection-screen"
+              aria-label="Your Dating Pool sections"
             >
               <header className="ff-about-heading ff-consideration-heading">
-                <h2>Considerations</h2>
-                <p>
+                <h2>Your Dating Pool</h2>
+                <p className="ff-section-subheading">
                   A preference is not the same as a dealbreaker. Choose a
                   section. You can complete them in any order.
                 </p>
               </header>
-              <div className="ff-about-overview">
-                <div className="ff-about-section-grid">
-                  {considerationSectionProgress.map(
-                    ({ section, screens, status }) => (
-                      <button
-                        className={`ff-about-section is-${status.toLowerCase().replaceAll(' ', '-')}`}
-                        type="button"
-                        key={section}
-                        onClick={() => {
-                          const firstIncomplete = screens.find(
-                            (index) =>
-                              !considerationScreenComplete(index, answers),
-                          );
-                          setSubstep(firstIncomplete ?? screens[0]);
-                          setConsiderationOverview(false);
-                          setShowValidation(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                      >
-                        <span className="ff-about-section-title">
-                          {section}
-                        </span>
-                        <span className="ff-about-section-status">
-                          {showValidation && status !== 'Complete'
-                            ? 'Needs attention'
-                            : status}
-                        </span>
-                      </button>
-                    ),
-                  )}
+              <div className="ff-about-frame ff-consideration-frame ff-pool-frame ff-selection-box">
+                <div className="ff-about-overview">
+                  <div className="ff-about-section-grid">
+                    {considerationSectionProgress.map(
+                      ({ section, screens, status }) => (
+                        <button
+                          className={`ff-about-section is-${status.toLowerCase().replaceAll(' ', '-')}`}
+                          type="button"
+                          key={section}
+                          onClick={() => {
+                            const firstIncomplete = screens.find(
+                              (index) =>
+                                !considerationScreenComplete(index, answers),
+                            );
+                            setSubstep(firstIncomplete ?? screens[0]);
+                            setConsiderationOverview(false);
+                            setShowValidation(false);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          <span className="ff-about-section-title">
+                            {section}
+                          </span>
+                          <span className="ff-about-section-status">
+                            {showValidation && status !== 'Complete'
+                              ? 'Needs attention'
+                              : status}
+                          </span>
+                        </button>
+                      ),
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="ff-consideration-heart" aria-hidden="true">
-                <Heart />
+                <Waves className="ff-pool-mark" aria-hidden="true" />
               </div>
             </section>
           )}
@@ -2366,14 +2498,17 @@ export default function FriendsFirst() {
                   onChange={(value) => setAnswer('education', value)}
                 />
               </Question>
-              <Question title="What is your religion or worldview?">
+              <Question title="How would you describe your religion, spiritual practice, and or worldview?">
                 <Choices
                   options={religionOptions}
                   value={answers.religion}
                   onChange={(value) => setAnswer('religion', value)}
                 />
               </Question>
-              <Question title="What are your political views?">
+              <Question
+                title="Which statement best reflects your overall political outlook?"
+                description="Select the option that most closely aligns with your views."
+              >
                 <Choices
                   options={politicalOptions}
                   value={answers.politics}
@@ -2408,7 +2543,7 @@ export default function FriendsFirst() {
                   onChange={(value) => setAnswer('alcohol', value)}
                 />
               </Question>
-              <Question title="Do you currently smoke or use nicotine products?">
+              <Question title="Do you currently use nicotine products?">
                 <Choices
                   options={frequencyOptions}
                   value={answers.nicotine}
@@ -2446,7 +2581,7 @@ export default function FriendsFirst() {
               {answers.cannabis && answers.cannabis !== 'No' && (
                 <div className="ff-follow-up">
                   <Question
-                    title="Which forms do you use?"
+                    title="Which cannabis products do you use?"
                     hint="Select all that apply."
                   >
                     <Choices
@@ -2550,6 +2685,7 @@ export default function FriendsFirst() {
                     prefix="minHeight"
                     answers={answers}
                     setAnswer={setAnswer}
+                    startAtZero
                   />
                 </Question>
                 <Question title="Maximum height">
@@ -2557,6 +2693,7 @@ export default function FriendsFirst() {
                     prefix="maxHeight"
                     answers={answers}
                     setAnswer={setAnswer}
+                    startAtZero
                   />
                 </Question>
               </div>
@@ -2592,17 +2729,18 @@ export default function FriendsFirst() {
                 </div>
               )}
               <Question
-                title="Which racial or ethnic groups would you consider dating?"
+                title="Which racial/ethnic groups would you consider dating people from?"
                 hint="Select all that apply."
               >
                 <Choices
-                  options={raceOptions}
+                  options={considerationRaceOptions}
                   value={answers.dateRace}
                   onChange={(value) => setAnswer('dateRace', value)}
                   multi
+                  exclusive="People of any racial/ethnic group"
                 />
               </Question>
-              <Question title="How important is racial or ethnic background when choosing a partner?">
+              <Question title="How important is racial/ethnic background to you when choosing a partner?">
                 <Choices
                   options={importanceOptions}
                   value={answers.raceImportance}
@@ -2610,17 +2748,18 @@ export default function FriendsFirst() {
                 />
               </Question>
               <Question
-                title="Which religious or worldview identities would you consider dating?"
+                title="Which religious, spiritual, and or worldview identities would you consider in a dating partner?"
                 hint="Select all that apply."
               >
                 <Choices
-                  options={religionOptions}
+                  options={considerationReligionOptions}
                   value={answers.dateReligion}
                   onChange={(value) => setAnswer('dateReligion', value)}
                   multi
+                  exclusive="Any religion, spirituality, or worldview"
                 />
               </Question>
-              <Question title="How important is religious or worldview alignment?">
+              <Question title="How important is a potential partner’s religion, spirituality, or worldview when deciding whether to date them?">
                 <Choices
                   options={importanceOptions}
                   value={answers.religionImportance}
@@ -2628,14 +2767,15 @@ export default function FriendsFirst() {
                 />
               </Question>
               <Question
-                title="Which political viewpoints would you consider dating?"
+                title="Which political outlooks would you consider in a partner?"
                 hint="Select all that apply."
               >
                 <Choices
-                  options={politicalOptions}
+                  options={considerationPoliticalOptions}
                   value={answers.datePolitics}
                   onChange={(value) => setAnswer('datePolitics', value)}
                   multi
+                  exclusive="My partner's political outlook is not important to me"
                 />
               </Question>
               <Question title="How important is political alignment?">
@@ -2814,15 +2954,11 @@ export default function FriendsFirst() {
             <section className="ff-strengths-frame">
               <div className="ff-instruction">
                 <p>
-                  Imagine your 3 closest friends were asked to describe the
-                  qualities that best characterize you. Distribute{' '}
-                  <strong>100 points</strong> across the traits below based on
-                  how strongly each trait reflects who you are.
-                </p>
-                <p>
-                  Assign more points to qualities that your friends would likely
-                  identify as defining strengths and fewer to qualities that are
-                  less characteristic of you. Your points must total 100.
+                  Imagine your <strong>three</strong> closest friends were asked
+                  to describe your defining qualities. Distribute{' '}
+                  <strong>100</strong> points across the traits below. Allocate
+                  more points to qualities that best reflect who you are and
+                  fewer points to those that are less characteristic of you.
                 </p>
               </div>
               <Allocator
@@ -2879,9 +3015,14 @@ export default function FriendsFirst() {
             <section
               className={`ff-strengths-frame ff-tradeoffs-frame ff-active-screen ${showValidation ? 'has-error' : ''}`}
             >
-              <div className="ff-profiles">
+              <p className="ff-challenge-count">
+                Challenge {substep + 1} of {scenarios.length}
+              </p>
+              <div
+                className={`ff-profiles ${substep === 0 ? 'is-first-challenge' : ''}`}
+              >
                 <article>
-                  <span>Person A</span>
+                  <span>Partner A</span>
                   <ul>
                     {scenarios[substep][0].map((item) => (
                       <li key={item}>{item}</li>
@@ -2890,7 +3031,7 @@ export default function FriendsFirst() {
                 </article>
                 <div>or</div>
                 <article>
-                  <span>Person B</span>
+                  <span>Partner B</span>
                   <ul>
                     {scenarios[substep][1].map((item) => (
                       <li key={item}>{item}</li>
@@ -2916,11 +3057,11 @@ export default function FriendsFirst() {
               <section className="ff-strengths-frame ff-priority-frame">
                 <div className="ff-priority-rounds">
                   <Question
-                    title="Round 1: Keep Only 5"
+                    title="Keep Only Five"
                     description={
                       <p className="ff-round-instruction">
                         You may keep only <strong>five</strong> of the following{' '}
-                        <strong>8</strong> traits.
+                        <strong>eight</strong> traits.
                       </p>
                     }
                     hint={`${((answers.keep5 as string[]) || []).length} of 5 selected`}
@@ -2935,7 +3076,7 @@ export default function FriendsFirst() {
                     />
                   </Question>
                   <Question
-                    title="Round 2: Keep Only Three"
+                    title="Keep Only Three"
                     description={
                       <p className="ff-round-instruction">
                         Keep only <strong>three</strong> of the five previously
@@ -2954,7 +3095,7 @@ export default function FriendsFirst() {
                     />
                   </Question>
                   <Question
-                    title="Round 3: Keep Only One"
+                    title="Keep Only One"
                     description={
                       <p className="ff-round-instruction">
                         Keep only <strong>one</strong> of three previously
@@ -2975,10 +3116,20 @@ export default function FriendsFirst() {
           )}
           {step === 5 && (
             <section className="ff-strengths-frame ff-reciprocal-frame">
-              <Question
-                title="Which three qualities would most likely make your ideal partner choose you?"
-                hint={`${((answers.chooseMe as string[]) || []).length} of 3 selected`}
+              <fieldset
+                className={`ff-question ${showValidation ? 'has-error' : ''}`}
               >
+                <legend className="ff-visually-hidden">
+                  Choose three qualities that would make your ideal partner
+                  choose you.
+                </legend>
+                <p className="ff-reciprocal-instruction">
+                  Choose three qualities from the list below that best answer
+                  the question, even if none feel like a perfect fit.
+                </p>
+                <p className="ff-hint">
+                  {((answers.chooseMe as string[]) || []).length} of 3 selected
+                </p>
                 <Choices
                   options={selfTraits}
                   value={answers.chooseMe}
@@ -2987,7 +3138,7 @@ export default function FriendsFirst() {
                   max={3}
                   twoColumn
                 />
-              </Question>
+              </fieldset>
             </section>
           )}
           {step === 8 && (
@@ -3048,7 +3199,7 @@ export default function FriendsFirst() {
               <p className="ff-validation">
                 {(step === 1 && aboutOverview) ||
                 (step === 2 && considerationOverview)
-                  ? `Complete each ${step === 1 ? 'About You' : 'Considerations'} section before continuing. Choose a section marked Needs attention.`
+                  ? `Complete each ${step === 1 ? 'About You' : 'Your Dating Pool'} section before continuing. Choose a section marked Needs attention.`
                   : 'Complete this question before continuing. We moved focus to the response that needs attention.'}
               </p>
             )}

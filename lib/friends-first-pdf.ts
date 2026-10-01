@@ -23,7 +23,8 @@ export function shouldIncludeFriendsFirstPdfResponse(
   if (key === 'petOther')
     return answers.pets === 'Yes' && includes(answers.petTypes, 'Other');
   if (key === 'dateGenderOther') return includes(answers.dateGender, 'Other');
-  if (key === 'dateReligion') return answers.dateReligionPractice === 'Yes';
+  if (key === 'datePoliticsOther')
+    return includes(answers.datePolitics, 'Other');
   return true;
 }
 
