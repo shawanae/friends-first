@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Check,
   FileDown,
@@ -10,7 +17,11 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react';
-import { buildFriendsFirstPdf, type PdfSection } from '@/lib/friends-first-pdf';
+import {
+  buildFriendsFirstPdf,
+  shouldIncludeFriendsFirstPdfResponse,
+  type PdfSection,
+} from '@/lib/friends-first-pdf';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -27,42 +38,42 @@ const blankAnswers: Answers = { selfPoints: {}, partnerPoints: {} };
 const modules = [
   ['Privacy Notice', 'Privacy Notice', ''],
   [
-    'About you',
+    'About You',
     'Module 1',
     'Tell us about who you are and the life you currently lead.',
   ],
   [
-    'Consideration filters',
+    'Considerations',
     'Module 2',
     'Describe the people you would realistically consider dating.',
   ],
   [
-    'Your Relationship Strengths',
+    'Your Strengths',
     'Module 3',
     'Reflect on the strengths you bring to a relationship.',
   ],
   [
-    'What Matters Most in a Partner',
+    'What Matters Most',
     'Module 4',
     'Distribute importance across the qualities you value in a partner.',
   ],
   [
-    'Trade-offs',
+    'Your Appeal',
     'Module 5',
-    'Choose between realistic relationship strengths when they compete.',
-  ],
-  [
-    'Flexibility',
-    'Module 6',
-    'Narrow your priorities from five traits to one.',
-  ],
-  [
-    'Reciprocal thinking',
-    'Module 7',
     'Consider what your ideal partner might value in you.',
   ],
   [
-    'Review & complete',
+    'Who Would You Choose',
+    'Module 6',
+    'Choose between realistic relationship strengths when they compete.',
+  ],
+  [
+    'Keep Only...',
+    'Module 7',
+    'Narrow your priorities from five traits to one.',
+  ],
+  [
+    'Review & Complete',
     'Module 8',
     'Review every response, make changes, and create your private PDF.',
   ],
@@ -210,16 +221,21 @@ const scenarios = [
 
 function Question({
   title,
+  description,
   hint,
   children,
 }: {
   title: string;
+  description?: React.ReactNode;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <fieldset className="ff-question">
       <legend>{title}</legend>
+      {description && (
+        <div className="ff-question-description">{description}</div>
+      )}
       {hint && <p className="ff-hint">{hint}</p>}
       <div className="ff-options">{children}</div>
     </fieldset>
@@ -258,6 +274,10 @@ function OptionLabel({ option }: { option: string }) {
   );
 }
 
+const AutoAdvanceContext = createContext<((value: string) => void) | null>(
+  null,
+);
+
 function Choices({
   options,
   value,
@@ -277,6 +297,7 @@ function Choices({
   singleColumn?: boolean;
   twoColumn?: boolean;
 }) {
+  const autoAdvance = useContext(AutoAdvanceContext);
   const selected = Array.isArray(value) ? value : [];
   const isYesNo =
     !multi &&
@@ -317,7 +338,10 @@ function Choices({
   return (
     <RadioGroup
       value={typeof value === 'string' ? value : ''}
-      onValueChange={onChange as (value: string) => void}
+      onValueChange={(nextValue) => {
+        onChange(nextValue);
+        autoAdvance?.(nextValue);
+      }}
       className={layoutClass}
     >
       {options.map((option) => (
@@ -333,15 +357,69 @@ function Choices({
   );
 }
 
+const tradeoffScaleLabels = [
+  'Definitely',
+  'Probably',
+  'Slightly',
+  'Equal',
+  'Slightly',
+  'Probably',
+  'Definitely',
+] as const;
+
+function TradeoffScale({
+  value,
+  onChange,
+}: {
+  value?: AnswerValue;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <fieldset className="ff-tradeoff-response">
+      <legend className="ff-visually-hidden">
+        Choose the response that most closely reflects what you would do.
+      </legend>
+      <div className="ff-scale-headings" aria-hidden="true">
+        <span>Person A</span>
+        <span>Equal preference</span>
+        <span>Person B</span>
+      </div>
+      <RadioGroup
+        value={typeof value === 'string' ? value : ''}
+        onValueChange={onChange}
+        className="ff-decision-scale"
+      >
+        {responseScale.map((option, index) => (
+          <label
+            className={`ff-scale-choice ${value === option ? 'is-selected' : ''}`}
+            key={option}
+          >
+            <RadioGroupItem value={option} aria-label={option} />
+            <span className="ff-scale-short" aria-hidden="true">
+              {tradeoffScaleLabels[index]}
+            </span>
+            <span className="ff-scale-full" aria-hidden="true">
+              {option}
+            </span>
+          </label>
+        ))}
+      </RadioGroup>
+    </fieldset>
+  );
+}
+
 function HeightFields({
   prefix,
   answers,
   setAnswer,
+  startAtZero = false,
 }: {
   prefix: string;
   answers: Answers;
   setAnswer: (key: string, value: AnswerValue) => void;
+  startAtZero?: boolean;
 }) {
+  const initialValue = startAtZero ? '0' : '';
   return (
     <div className="ff-inline-fields">
       <label>
@@ -351,9 +429,9 @@ function HeightFields({
           min="3"
           max="8"
           inputMode="numeric"
-          value={(answers[`${prefix}Feet`] as string) || ''}
+          value={(answers[`${prefix}Feet`] as string) || initialValue}
           onChange={(event) => setAnswer(`${prefix}Feet`, event.target.value)}
-          placeholder="5"
+          placeholder={startAtZero ? '0' : undefined}
         />
       </label>
       <label>
@@ -363,9 +441,9 @@ function HeightFields({
           min="0"
           max="11"
           inputMode="numeric"
-          value={(answers[`${prefix}Inches`] as string) || ''}
+          value={(answers[`${prefix}Inches`] as string) || initialValue}
           onChange={(event) => setAnswer(`${prefix}Inches`, event.target.value)}
-          placeholder="8"
+          placeholder={startAtZero ? '0' : undefined}
         />
       </label>
     </div>
@@ -428,7 +506,7 @@ function Allocator({
 
 const summaryGroups: Array<[string, Array<[string, string]>]> = [
   [
-    'About you',
+    'About You',
     [
       ['age', 'Age'],
       ['height', 'Height'],
@@ -455,7 +533,7 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
     ],
   ],
   [
-    'Consideration filters',
+    'Considerations',
     [
       ['ageRange', 'Age range'],
       ['heightRange', 'Height range'],
@@ -487,10 +565,14 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
       ['petsImportance', 'Importance of pet ownership'],
     ],
   ],
-  ['What you bring', [['selfPoints', 'Strength allocation']]],
-  ['What matters most', [['partnerPoints', 'Ideal-partner allocation']]],
+  ['Your Strengths', [['selfPoints', 'Strength allocation']]],
+  ['What Matters Most', [['partnerPoints', 'Ideal-partner allocation']]],
   [
-    'Trade-offs',
+    'Your Appeal',
+    [['chooseMe', 'Three qualities an ideal partner might choose']],
+  ],
+  [
+    'Who Would You Choose',
     [
       ['scenario0', 'Scenario 1'],
       ['scenario1', 'Scenario 2'],
@@ -500,18 +582,95 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
     ],
   ],
   [
-    'Flexibility',
+    'Keep Only...',
     [
       ['keep5', 'Five essential traits'],
       ['keep3', 'Three essential traits'],
       ['keep1', 'Single essential trait'],
     ],
   ],
-  [
-    'Reciprocal thinking',
-    [['chooseMe', 'Three qualities an ideal partner might choose']],
-  ],
 ];
+
+const pdfQuestionLabels: Record<string, string> = {
+  age: 'What is your age?',
+  height: 'What is your height?',
+  gender: 'What is your gender identity?',
+  genderOther: 'Please specify your gender identity.',
+  genderAlign:
+    'Does your current gender identity align with your assigned sex at birth?',
+  race: 'What is your race and or ethnicity?',
+  education: 'What is the highest level of education you have completed?',
+  religion:
+    'How would you describe your religion, spiritual practice, and or worldview?',
+  religionOther:
+    'Please specify your religion, spiritual practice, or worldview.',
+  politics: 'What are your political views?',
+  children: 'Do you have children?',
+  futureChildren: 'Would you want children in the future?',
+  alcohol: 'How do you currently use alcohol?',
+  nicotine: 'Do you currently smoke or use nicotine products?',
+  nicotineTypes: 'Which nicotine products do you use?',
+  cannabis: 'Do you use cannabis?',
+  cannabisTypes: 'Which forms do you use?',
+  exercise: 'How would you describe your current exercise habits?',
+  lifeValues:
+    'Below is a list of common life values. Select the five values that are most important to you and that most strongly influence how you live your life.',
+  pets: 'Do you currently have pets?',
+  petTypes: 'What pets do you have?',
+  petOther: 'Please specify your other pet.',
+  ageRange: 'What age range would you consider dating?',
+  heightRange: 'What height range would you consider dating?',
+  dateGender: 'What genders would you consider dating?',
+  dateGenderOther: 'Please specify the other gender you would consider dating.',
+  dateRace: 'Which racial or ethnic groups would you consider dating?',
+  raceImportance:
+    'How important is racial or ethnic background when choosing a partner?',
+  dateReligionPractice:
+    'Would you date someone religious and or has a spiritual practice?',
+  dateReligion:
+    'Which religious or worldview identities would you consider dating?',
+  religionImportance: 'How important is religious or worldview alignment?',
+  datePolitics: 'Which political viewpoints would you consider dating?',
+  politicsImportance: 'How important is political alignment?',
+  minEducation: 'What is the minimum education level you would consider?',
+  idealEducation: 'What is your ideal education level for a partner?',
+  dateChildren: 'Would you date someone with children?',
+  partnerChildren: 'Are you looking for someone who wants children?',
+  dateAlcohol: 'Which alcohol-use habits would you consider?',
+  alcoholImportance: 'How important is a potential partner’s alcohol use?',
+  dateNicotine: 'Which nicotine-use habits would you consider?',
+  nicotineImportance: 'How important is a potential partner’s nicotine use?',
+  dateCannabis: 'Which cannabis-use habits would you consider?',
+  cannabisImportance: 'How important is a potential partner’s cannabis use?',
+  dateExercise: 'What exercise habits would you consider?',
+  exerciseImportance:
+    'How important are a potential partner’s exercise habits?',
+  datePets: 'Which pet ownership situations would you consider?',
+  petsImportance:
+    'How important is a potential partner’s pet ownership situation?',
+  selfPoints:
+    'Distribute 100 points across the traits based on how strongly each trait reflects who you are.',
+  partnerPoints:
+    'Distribute 100 points across the qualities based on their importance in your ideal long-term partner.',
+  chooseMe:
+    'Which three qualities would most likely make your ideal partner choose you?',
+  keep5:
+    'Round 1: Keep Only 5 - You may keep only five of the following 8 traits.',
+  keep3:
+    'Round 2: Keep Only Three - Keep only three of the five previously selected traits.',
+  keep1:
+    'Round 3: Keep Only One - Keep only one of three previously selected traits.',
+};
+
+function pdfQuestionLabel(key: string, fallback: string) {
+  if (key.startsWith('scenario')) {
+    const index = Number(key.replace('scenario', ''));
+    const scenario = scenarios[index];
+    if (scenario)
+      return `Scenario ${index + 1} - Person A: ${scenario[0].join(', ')}. Person B: ${scenario[1].join(', ')}.`;
+  }
+  return pdfQuestionLabels[key] || fallback;
+}
 
 function valueText(value: AnswerValue | undefined) {
   if (!value || (Array.isArray(value) && value.length === 0))
@@ -541,10 +700,12 @@ function pdfSections(answers: Answers): PdfSection[] {
   const prepared = prepareSummaryAnswers(answers);
   return summaryGroups.map(([title, rows]) => ({
     title,
-    rows: rows.map(([key, label]) => ({
-      label,
-      value: valueText(prepared[key]),
-    })),
+    rows: rows
+      .filter(([key]) => shouldIncludeFriendsFirstPdfResponse(key, answers))
+      .map(([key, label]) => ({
+        label: pdfQuestionLabel(key, label),
+        value: valueText(prepared[key]),
+      })),
   }));
 }
 
@@ -797,10 +958,15 @@ function moduleComplete(module: number, answers: Answers) {
   if (module === 3) return pointsTotal(answers.selfPoints) === 100;
   if (module === 4) return pointsTotal(answers.partnerPoints) === 100;
   if (module === 5)
+    return (
+      hasList(answers.chooseMe, 3) &&
+      (answers.chooseMe as string[]).length === 3
+    );
+  if (module === 6)
     return [0, 1, 2, 3, 4].every((index) =>
       hasText(answers[`scenario${index}`]),
     );
-  if (module === 6)
+  if (module === 7)
     return (
       hasList(answers.keep5, 5) &&
       (answers.keep5 as string[]).length === 5 &&
@@ -808,11 +974,6 @@ function moduleComplete(module: number, answers: Answers) {
       (answers.keep3 as string[]).length === 3 &&
       hasText(answers.keep1) &&
       (answers.keep3 as string[]).includes(answers.keep1 as string)
-    );
-  if (module === 7)
-    return (
-      hasList(answers.chooseMe, 3) &&
-      (answers.chooseMe as string[]).length === 3
     );
   return true;
 }
@@ -835,7 +996,6 @@ function AboutYouScreen({
         inputMode="numeric"
         value={(answers.age as string) || ''}
         onChange={(event) => setAnswer('age', event.target.value)}
-        placeholder="20–100"
       />
     </Question>,
     <Question key="height" title="What is your height?">
@@ -1135,6 +1295,7 @@ function ConsiderationScreen({
             prefix="minHeight"
             answers={answers}
             setAnswer={setAnswer}
+            startAtZero
           />
         </div>
         <div>
@@ -1143,6 +1304,7 @@ function ConsiderationScreen({
             prefix="maxHeight"
             answers={answers}
             setAnswer={setAnswer}
+            startAtZero
           />
         </div>
       </div>
@@ -1478,10 +1640,13 @@ export default function FriendsFirst() {
   const [aboutOverview, setAboutOverview] = useState(true);
   const [considerationIntro, setConsiderationIntro] = useState(true);
   const [considerationOverview, setConsiderationOverview] = useState(false);
+  const [tradeoffsIntro, setTradeoffsIntro] = useState(true);
   const [answers, setAnswers] = useState<Answers>(blankAnswers);
   const [loaded, setLoaded] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const continueForwardRef = useRef<() => void>(() => {});
+  const autoAdvanceTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     try {
@@ -1499,6 +1664,7 @@ export default function FriendsFirst() {
   useEffect(() => {
     if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
   }, [answers, loaded]);
+  useEffect(() => () => window.clearTimeout(autoAdvanceTimer.current), []);
 
   const setAnswer = (key: string, value: AnswerValue) => {
     setShowValidation(false);
@@ -1546,6 +1712,8 @@ export default function FriendsFirst() {
         ? moduleComplete(2, answers)
         : considerationScreenComplete(substep, answers);
     }
+    if (step === 6)
+      return tradeoffsIntro || hasText(answers[`scenario${substep}`]);
     if (step >= 3 && step <= 7) return moduleComplete(step, answers);
     return true;
   }, [
@@ -1555,6 +1723,7 @@ export default function FriendsFirst() {
     considerationOverview,
     step,
     substep,
+    tradeoffsIntro,
   ]);
 
   const focusCurrentQuestion = () =>
@@ -1567,6 +1736,8 @@ export default function FriendsFirst() {
       control?.focus({ preventScroll: true });
     });
   const continueForward = () => {
+    window.clearTimeout(autoAdvanceTimer.current);
+    autoAdvanceTimer.current = undefined;
     if (!canContinue) {
       setShowValidation(true);
       if (
@@ -1627,10 +1798,50 @@ export default function FriendsFirst() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    if (step === 5) {
+      setStep(6);
+      setSubstep(0);
+      setTradeoffsIntro(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (step === 6 && tradeoffsIntro) {
+      setTradeoffsIntro(false);
+      setSubstep(0);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (step === 6 && substep < scenarios.length - 1) {
+      setSubstep((value) => value + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     const next = Math.min(modules.length - 1, step + 1);
     setStep(next);
     setSubstep(0);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  continueForwardRef.current = continueForward;
+
+  const handleSingleChoiceSelection = (value: string) => {
+    const revealsFollowUp =
+      (step === 1 &&
+        ((substep === 2 && value === 'Prefer to Self-describe') ||
+          (substep === 6 && value === 'Other') ||
+          (substep === 9 && value !== 'No') ||
+          (substep === 10 && value !== 'No') ||
+          (substep === 15 && value === 'Yes'))) ||
+      (step === 2 && substep === 5 && value === 'Yes');
+    if (revealsFollowUp) return;
+
+    window.clearTimeout(autoAdvanceTimer.current);
+    autoAdvanceTimer.current = window.setTimeout(
+      () => continueForwardRef.current(),
+      250,
+    );
+  };
+  const handleTradeoffSelection = (value: string) => {
+    setAnswer(`scenario${substep}`, value);
   };
   const goBack = () => {
     setShowValidation(false);
@@ -1676,6 +1887,19 @@ export default function FriendsFirst() {
       setStep(2);
       setConsiderationIntro(false);
       setConsiderationOverview(true);
+    } else if (step === 6) {
+      if (tradeoffsIntro) {
+        setStep(5);
+        setSubstep(0);
+      } else if (substep > 0) {
+        setSubstep((value) => value - 1);
+      } else {
+        setTradeoffsIntro(true);
+      }
+    } else if (step === 7) {
+      setStep(6);
+      setSubstep(scenarios.length - 1);
+      setTradeoffsIntro(false);
     } else {
       setStep((value) => Math.max(0, value - 1));
       setSubstep(0);
@@ -1696,7 +1920,11 @@ export default function FriendsFirst() {
             ? considerationScreens.findIndex(
                 (_, index) => !considerationScreenComplete(index, answers),
               )
-            : 0;
+            : incompleteModule === 6
+              ? scenarios.findIndex(
+                  (_, index) => !hasText(answers[`scenario${index}`]),
+                )
+              : 0;
       setStep(incompleteModule);
       setSubstep(Math.max(0, missingScreen));
       if (incompleteModule === 1) setAboutOverview(false);
@@ -1704,6 +1932,7 @@ export default function FriendsFirst() {
         setConsiderationIntro(false);
         setConsiderationOverview(false);
       }
+      if (incompleteModule === 6) setTradeoffsIntro(false);
       setShowValidation(true);
       focusCurrentQuestion();
       return;
@@ -1724,6 +1953,7 @@ export default function FriendsFirst() {
     setAboutOverview(true);
     setConsiderationIntro(true);
     setConsiderationOverview(false);
+    setTradeoffsIntro(true);
     setShowValidation(false);
     setCompleted(false);
     setShowHome(true);
@@ -1808,7 +2038,15 @@ export default function FriendsFirst() {
               considerationScreens.length) *
               100,
           )
-        : Math.round((step / 8) * 100);
+        : step === 6
+          ? Math.round(
+              (scenarios.filter((_, index) =>
+                hasText(answers[`scenario${index}`]),
+              ).length /
+                scenarios.length) *
+                100,
+            )
+          : Math.round((step / 8) * 100);
 
   if (showHome)
     return (
@@ -1869,7 +2107,7 @@ export default function FriendsFirst() {
 
   return (
     <main
-      className={`ff-shell ${step === 0 ? 'ff-privacy-theme' : step >= 1 && step <= 3 ? 'ff-about-theme' : ''} ${step === 2 ? 'ff-consideration-theme' : ''} ${step === 3 ? 'ff-strengths-theme' : ''}`}
+      className={`ff-shell ${step === 0 ? 'ff-privacy-theme' : step >= 1 && step <= 8 ? 'ff-about-theme' : ''} ${step === 2 ? 'ff-consideration-theme' : ''} ${step >= 3 && step <= 8 ? 'ff-strengths-theme' : ''} ${step === 8 ? 'ff-review-theme' : ''}`}
     >
       <ReviewSummary answers={answers} printable />
       <section className="ff-main" id="friends-first-top">
@@ -1883,8 +2121,16 @@ export default function FriendsFirst() {
                   : step === 2
                     ? 'Considerations'
                     : step === 3
-                      ? 'Your Relationship Strengths'
-                      : 'Survey progress'}
+                      ? 'Your Strengths'
+                      : step === 4
+                        ? 'What Matters Most'
+                        : step === 5
+                          ? 'Your Appeal'
+                          : step === 6
+                            ? 'Who Would You Choose'
+                            : step === 7
+                              ? 'Keep Only...'
+                              : 'Review & Complete'}
             </span>
             <span>{screenProgress}% complete</span>
           </div>
@@ -1898,7 +2144,7 @@ export default function FriendsFirst() {
               <header className="ff-heading">
                 <h2>
                   {step === 1 && aboutOverview
-                    ? 'About you'
+                    ? 'About You'
                     : currentSection || modules[step][0]}
                 </h2>
               </header>
@@ -1920,7 +2166,7 @@ export default function FriendsFirst() {
           )}
 
           {step === 1 && aboutOverview && (
-            <section className="ff-about-frame" aria-label="About you sections">
+            <section className="ff-about-frame" aria-label="About You sections">
               <header className="ff-about-heading">
                 <h2>
                   About You <UserRound aria-hidden="true" />
@@ -1961,11 +2207,13 @@ export default function FriendsFirst() {
             <div
               className={`ff-active-screen ${showValidation ? 'has-error' : ''}`}
             >
-              <AboutYouScreen
-                index={substep}
-                answers={answers}
-                setAnswer={setAnswer}
-              />
+              <AutoAdvanceContext.Provider value={handleSingleChoiceSelection}>
+                <AboutYouScreen
+                  index={substep}
+                  answers={answers}
+                  setAnswer={setAnswer}
+                />
+              </AutoAdvanceContext.Provider>
             </div>
           )}
 
@@ -2037,11 +2285,13 @@ export default function FriendsFirst() {
             <div
               className={`ff-active-screen ${showValidation ? 'has-error' : ''}`}
             >
-              <ConsiderationScreen
-                index={substep}
-                answers={answers}
-                setAnswer={setAnswer}
-              />
+              <AutoAdvanceContext.Provider value={handleSingleChoiceSelection}>
+                <ConsiderationScreen
+                  index={substep}
+                  answers={answers}
+                  setAnswer={setAnswer}
+                />
+              </AutoAdvanceContext.Provider>
             </div>
           )}
 
@@ -2056,7 +2306,6 @@ export default function FriendsFirst() {
                     inputMode="numeric"
                     value={(answers.age as string) || ''}
                     onChange={(event) => setAnswer('age', event.target.value)}
-                    placeholder="20–100"
                   />
                 </Question>
                 <Question title="What is your height?">
@@ -2564,8 +2813,17 @@ export default function FriendsFirst() {
           {step === 3 && (
             <section className="ff-strengths-frame">
               <div className="ff-instruction">
-                Imagine your three closest friends describing your strengths as
-                a romantic partner. Distribute exactly 100 points.
+                <p>
+                  Imagine your 3 closest friends were asked to describe the
+                  qualities that best characterize you. Distribute{' '}
+                  <strong>100 points</strong> across the traits below based on
+                  how strongly each trait reflects who you are.
+                </p>
+                <p>
+                  Assign more points to qualities that your friends would likely
+                  identify as defining strengths and fewer to qualities that are
+                  less characteristic of you. Your points must total 100.
+                </p>
               </div>
               <Allocator
                 items={selfTraits}
@@ -2576,7 +2834,7 @@ export default function FriendsFirst() {
             </section>
           )}
           {step === 4 && (
-            <div>
+            <section className="ff-strengths-frame">
               <div className="ff-instruction">
                 Imagine you are evaluating your ideal long-term partner.
                 Distribute exactly 100 points based on importance.
@@ -2585,97 +2843,152 @@ export default function FriendsFirst() {
                 items={partnerTraits}
                 value={answers.partnerPoints as Points}
                 onChange={(value) => setAnswer('partnerPoints', value)}
+                cardLayout
               />
+            </section>
+          )}
+          {step === 6 && tradeoffsIntro && (
+            <section className="ff-strengths-frame ff-tradeoffs-intro">
+              <div className="ff-tradeoffs-copy">
+                <p>
+                  You will be presented with two hypothetical partners. Each
+                  partner possesses desirable qualities, but no partner is
+                  perfect. These scenarios are designed to understand how you
+                  make relationship decisions when important qualities compete
+                  with one another.
+                </p>
+                <p>For each scenario:</p>
+                <ul>
+                  <li>Read both profiles carefully.</li>
+                  <li>Assume both people are equally interested in you.</li>
+                  <li>
+                    Assume there are no hidden dealbreakers or additional
+                    information.
+                  </li>
+                  <li>Base your answer only on the information provided.</li>
+                  <li>
+                    Choose the response that most closely reflects what you
+                    would actually do, not what you believe is the
+                    &quot;best&quot; answer.
+                  </li>
+                </ul>
+              </div>
+            </section>
+          )}
+          {step === 6 && !tradeoffsIntro && (
+            <section
+              className={`ff-strengths-frame ff-tradeoffs-frame ff-active-screen ${showValidation ? 'has-error' : ''}`}
+            >
+              <div className="ff-profiles">
+                <article>
+                  <span>Person A</span>
+                  <ul>
+                    {scenarios[substep][0].map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </article>
+                <div>or</div>
+                <article>
+                  <span>Person B</span>
+                  <ul>
+                    {scenarios[substep][1].map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </article>
+              </div>
+              <TradeoffScale
+                value={answers[`scenario${substep}`]}
+                onChange={handleTradeoffSelection}
+              />
+            </section>
+          )}
+          {step === 7 && (
+            <div className="ff-priority-module">
+              <div className="ff-instruction ff-priority-intro">
+                <p>
+                  Choose the traits that would be hardest for you to give up in
+                  a long-term romantic partner. As the exercise progresses, your
+                  choices will become more difficult.
+                </p>
+              </div>
+              <section className="ff-strengths-frame ff-priority-frame">
+                <div className="ff-priority-rounds">
+                  <Question
+                    title="Round 1: Keep Only 5"
+                    description={
+                      <p className="ff-round-instruction">
+                        You may keep only <strong>five</strong> of the following{' '}
+                        <strong>8</strong> traits.
+                      </p>
+                    }
+                    hint={`${((answers.keep5 as string[]) || []).length} of 5 selected`}
+                  >
+                    <Choices
+                      options={partnerTraits}
+                      value={answers.keep5}
+                      onChange={(value) => setAnswer('keep5', value)}
+                      multi
+                      max={5}
+                      twoColumn
+                    />
+                  </Question>
+                  <Question
+                    title="Round 2: Keep Only Three"
+                    description={
+                      <p className="ff-round-instruction">
+                        Keep only <strong>three</strong> of the five previously
+                        selected traits.
+                      </p>
+                    }
+                    hint={`${((answers.keep3 as string[]) || []).length} of 3 selected`}
+                  >
+                    <Choices
+                      options={(answers.keep5 as string[]) || []}
+                      value={answers.keep3}
+                      onChange={(value) => setAnswer('keep3', value)}
+                      multi
+                      max={3}
+                      twoColumn
+                    />
+                  </Question>
+                  <Question
+                    title="Round 3: Keep Only One"
+                    description={
+                      <p className="ff-round-instruction">
+                        Keep only <strong>one</strong> of three previously
+                        selected traits.
+                      </p>
+                    }
+                    hint={`${hasText(answers.keep1) ? 1 : 0} of 1 selected`}
+                  >
+                    <Choices
+                      options={(answers.keep3 as string[]) || []}
+                      value={answers.keep1}
+                      onChange={(value) => setAnswer('keep1', value)}
+                    />
+                  </Question>
+                </div>
+              </section>
             </div>
           )}
           {step === 5 && (
-            <div className="ff-stack">
-              <div className="ff-instruction">
-                Assume both people are equally interested in you, there are no
-                hidden dealbreakers, and you know only what is shown.
-              </div>
-              {scenarios.map((scenario, index) => (
-                <Question
-                  key={index}
-                  title={`Scenario ${index + 1}`}
-                  hint="If you could pursue only one, which person would you be more likely to choose?"
-                >
-                  <div className="ff-profiles">
-                    <article>
-                      <span>Person A</span>
-                      <ul>
-                        {scenario[0].map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </article>
-                    <div>or</div>
-                    <article>
-                      <span>Person B</span>
-                      <ul>
-                        {scenario[1].map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </article>
-                  </div>
-                  <Choices
-                    options={responseScale}
-                    value={answers[`scenario${index}`]}
-                    onChange={(value) => setAnswer(`scenario${index}`, value)}
-                  />
-                </Question>
-              ))}
-            </div>
-          )}
-          {step === 6 && (
-            <div className="ff-stack">
+            <section className="ff-strengths-frame ff-reciprocal-frame">
               <Question
-                title="Round 1 · Keep only 5"
-                hint={`${((answers.keep5 as string[]) || []).length} of 5 selected`}
+                title="Which three qualities would most likely make your ideal partner choose you?"
+                hint={`${((answers.chooseMe as string[]) || []).length} of 3 selected`}
               >
                 <Choices
-                  options={partnerTraits}
-                  value={answers.keep5}
-                  onChange={(value) => setAnswer('keep5', value)}
-                  multi
-                  max={5}
-                />
-              </Question>
-              <Question
-                title="Round 2 · Keep only 3"
-                hint={`${((answers.keep3 as string[]) || []).length} of 3 selected`}
-              >
-                <Choices
-                  options={(answers.keep5 as string[]) || []}
-                  value={answers.keep3}
-                  onChange={(value) => setAnswer('keep3', value)}
+                  options={selfTraits}
+                  value={answers.chooseMe}
+                  onChange={(value) => setAnswer('chooseMe', value)}
                   multi
                   max={3}
+                  twoColumn
                 />
               </Question>
-              <Question title="Round 3 · Keep only 1">
-                <Choices
-                  options={(answers.keep3 as string[]) || []}
-                  value={answers.keep1}
-                  onChange={(value) => setAnswer('keep1', value)}
-                />
-              </Question>
-            </div>
-          )}
-          {step === 7 && (
-            <Question
-              title="Which three qualities would most likely make your ideal partner choose you?"
-              hint={`${((answers.chooseMe as string[]) || []).length} of 3 selected`}
-            >
-              <Choices
-                options={selfTraits}
-                value={answers.chooseMe}
-                onChange={(value) => setAnswer('chooseMe', value)}
-                multi
-                max={3}
-              />
-            </Question>
+            </section>
           )}
           {step === 8 && (
             <div className="ff-review-wrap">
@@ -2735,7 +3048,7 @@ export default function FriendsFirst() {
               <p className="ff-validation">
                 {(step === 1 && aboutOverview) ||
                 (step === 2 && considerationOverview)
-                  ? `Complete each ${step === 1 ? 'About You' : 'Consideration Filters'} section before continuing. Choose a section marked Needs attention.`
+                  ? `Complete each ${step === 1 ? 'About You' : 'Considerations'} section before continuing. Choose a section marked Needs attention.`
                   : 'Complete this question before continuing. We moved focus to the response that needs attention.'}
               </p>
             )}

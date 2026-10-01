@@ -3,6 +3,30 @@ export type PdfSection = {
   rows: Array<{ label: string; value: string }>;
 };
 
+export function shouldIncludeFriendsFirstPdfResponse(
+  key: string,
+  answers: Record<string, unknown>,
+) {
+  const hasText = (value: unknown) =>
+    typeof value === 'string' && value.trim().length > 0;
+  const includes = (value: unknown, option: string) =>
+    Array.isArray(value) && value.includes(option);
+
+  if (key === 'genderOther')
+    return answers.gender === 'Prefer to Self-describe';
+  if (key === 'religionOther') return answers.religion === 'Other';
+  if (key === 'nicotineTypes')
+    return hasText(answers.nicotine) && answers.nicotine !== 'No';
+  if (key === 'cannabisTypes')
+    return hasText(answers.cannabis) && answers.cannabis !== 'No';
+  if (key === 'petTypes') return answers.pets === 'Yes';
+  if (key === 'petOther')
+    return answers.pets === 'Yes' && includes(answers.petTypes, 'Other');
+  if (key === 'dateGenderOther') return includes(answers.dateGender, 'Other');
+  if (key === 'dateReligion') return answers.dateReligionPractice === 'Yes';
+  return true;
+}
+
 type PdfLine = {
   text: string;
   font: 'regular' | 'bold';
@@ -68,13 +92,16 @@ function makeLines(sections: PdfSection[]) {
       keepWithNext: true,
     });
     for (const row of section.rows) {
-      lines.push({
-        text: row.label,
-        font: 'bold',
-        size: 9,
-        gapAfter: 2,
-        keepWithNext: true,
-      });
+      const wrappedLabels = wrapText(row.label, 86);
+      for (const [index, wrapped] of wrappedLabels.entries()) {
+        lines.push({
+          text: wrapped,
+          font: 'bold',
+          size: 9,
+          gapAfter: index < wrappedLabels.length - 1 ? 1 : 2,
+          keepWithNext: true,
+        });
+      }
       const wrappedLines = wrapText(row.value, 86);
       for (const [index, wrapped] of wrappedLines.entries()) {
         lines.push({
