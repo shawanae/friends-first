@@ -24,6 +24,12 @@ import {
   shouldIncludeFriendsFirstPdfResponse,
   type PdfSection,
 } from '@/lib/friends-first-pdf';
+import {
+  archetypeProfiles,
+  calculateArchetypeResult,
+  dimensions,
+  type ArchetypeResult,
+} from '@/lib/archetype-scoring';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -70,7 +76,7 @@ const modules = [
     'Choose between realistic relationship strengths when they compete.',
   ],
   [
-    'Essentials',
+    "What's Essential?",
     'Module 7',
     'Identify the qualities you would protect when choices become difficult.',
   ],
@@ -324,6 +330,7 @@ function Choices({
   exclusive,
   singleColumn = false,
   twoColumn = false,
+  cards = false,
 }: {
   options: readonly string[];
   value?: AnswerValue;
@@ -333,6 +340,7 @@ function Choices({
   exclusive?: string;
   singleColumn?: boolean;
   twoColumn?: boolean;
+  cards?: boolean;
 }) {
   const autoAdvance = useContext(AutoAdvanceContext);
   const selected = Array.isArray(value) ? value : [];
@@ -342,7 +350,7 @@ function Choices({
     options.length === 2 &&
     options.includes('Yes') &&
     options.includes('No');
-  const layoutClass = `ff-choice-grid ${singleColumn ? 'ff-single-column' : ''} ${twoColumn ? 'ff-two-column' : ''} ${isYesNo ? 'ff-yes-no' : ''}`;
+  const layoutClass = `ff-choice-grid ${singleColumn ? 'ff-single-column' : ''} ${twoColumn ? 'ff-two-column' : ''} ${isYesNo ? 'ff-yes-no' : ''} ${cards ? 'ff-selection-cards' : ''}`;
   if (multi)
     return (
       <div className={layoutClass}>
@@ -658,7 +666,7 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
     ],
   ],
   [
-    'Essentials',
+    "What's Essential?",
     [
       ['keep5', 'Five essential traits'],
       ['keep3', 'Three essential traits'],
@@ -825,6 +833,129 @@ function ReviewSummary({
         </section>
       ))}
     </div>
+  );
+}
+
+function ArchetypeResults({
+  result,
+  onBack,
+  onReview,
+  onDownload,
+}: {
+  result: ArchetypeResult;
+  onBack: () => void;
+  onReview: () => void;
+  onDownload: () => void;
+}) {
+  const primaryArchetype = result.archetypes[0];
+  const profile = archetypeProfiles[primaryArchetype.name];
+  return (
+    <section className="ff-archetype-page">
+      <header className="ff-archetype-heading">
+        <p className="ff-archetype-eyebrow">Your relationship archetype</p>
+        <h1>What primarily drives your relationship decisions?</h1>
+        <p>
+          Your result reflects the priorities, trade-offs, and essential
+          qualities you selected throughout Friends First.
+        </p>
+      </header>
+
+      <section className="ff-archetype-result-card">
+        <p className="ff-archetype-result-type">Your relationship archetype</p>
+        <h2>{primaryArchetype.name}</h2>
+        <div className="ff-archetype-motivation">
+          <strong>Core Motivation</strong>
+          <p>{profile.coreMotivation}</p>
+        </div>
+      </section>
+
+      <section className="ff-dimension-panel">
+        <div className="ff-dimension-heading">
+          <h2>Dimension Profile</h2>
+          <p>
+            Each score shows how strongly that relationship priority influenced
+            your answers. A lower score is not negative—it simply means that
+            priority played a smaller role in your choices. The scores are
+            independent and do not add up to 100.
+          </p>
+        </div>
+        <div className="ff-dimension-list">
+          {dimensions.map((dimension) => {
+            const score = Math.max(
+              0,
+              Math.min(100, result.dimensions[dimension]),
+            );
+            return (
+              <div className="ff-dimension" key={dimension}>
+                <div>
+                  <strong>{dimension}</strong>
+                  <span>{Math.round(score)}</span>
+                </div>
+                <div
+                  className="ff-dimension-track"
+                  role="progressbar"
+                  aria-label={`${dimension} score`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(score)}
+                >
+                  <span style={{ width: `${score}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="ff-archetype-profile-card">
+        <h2>About This Archetype</h2>
+        <div className="ff-archetype-description">
+          {profile.description.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
+
+        <div className="ff-archetype-profile-grid">
+          <section>
+            <h3>Strengths</h3>
+            <ul>
+              {profile.strengths.map((strength) => (
+                <li key={strength}>{strength}</li>
+              ))}
+            </ul>
+          </section>
+          <section>
+            <h3>Potential Blind Spots</h3>
+            <ul>
+              {profile.blindSpots.map((blindSpot) => (
+                <li key={blindSpot}>{blindSpot}</li>
+              ))}
+            </ul>
+          </section>
+        </div>
+
+        <section className="ff-archetype-drivers">
+          <h3>Primary Drivers</h3>
+          <ol>
+            {profile.drivers.map((driver) => (
+              <li key={driver}>{driver}</li>
+            ))}
+          </ol>
+        </section>
+      </section>
+
+      <div className="ff-archetype-actions">
+        <Button size="lg" onClick={onReview}>
+          Review My Responses
+        </Button>
+        <Button size="lg" variant="outline" onClick={onDownload}>
+          <FileDown /> Download PDF
+        </Button>
+        <button type="button" onClick={onBack}>
+          Back to completion
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -1406,7 +1537,7 @@ function ConsiderationScreen({
       key="height-range"
       title="What height range would you consider dating?"
     >
-      <div className="ff-range-pair">
+      <div className="ff-range-pair ff-height-range">
         <div>
           <strong>Minimum height</strong>
           <HeightFields
@@ -1765,10 +1896,15 @@ export default function FriendsFirst() {
   const [answers, setAnswers] = useState<Answers>(blankAnswers);
   const [loaded, setLoaded] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [showArchetype, setShowArchetype] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
   const [showPreviewNavigation, setShowPreviewNavigation] = useState(false);
   const continueForwardRef = useRef<() => void>(() => {});
   const autoAdvanceTimer = useRef<number | undefined>(undefined);
+  const archetypeResult = useMemo(
+    () => calculateArchetypeResult(answers),
+    [answers],
+  );
 
   useEffect(() => {
     try {
@@ -2085,6 +2221,7 @@ export default function FriendsFirst() {
       focusCurrentQuestion();
       return;
     }
+    setShowArchetype(false);
     setCompleted(true);
   };
   const clearResponses = () => {
@@ -2104,6 +2241,7 @@ export default function FriendsFirst() {
     setTradeoffsIntro(true);
     setShowValidation(false);
     setCompleted(false);
+    setShowArchetype(false);
     setShowHome(true);
   };
   const downloadPdf = () => {
@@ -2123,9 +2261,18 @@ export default function FriendsFirst() {
 
   const jumpToPreviewTarget = (target: string) => {
     setCompleted(false);
+    setShowArchetype(false);
     setShowValidation(false);
     setShowHome(target === 'home');
     if (target === 'home') return;
+
+    if (target === 'archetype') {
+      setShowHome(false);
+      setCompleted(true);
+      setShowArchetype(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
     setAboutOverview(false);
     setConsiderationIntro(false);
@@ -2224,10 +2371,11 @@ export default function FriendsFirst() {
             Who Would You Choose: Challenge {index + 1}
           </option>
         ))}
-        <option value="essentials-0">Essentials: Round 1</option>
-        <option value="essentials-1">Essentials: Round 2</option>
-        <option value="essentials-2">Essentials: Round 3</option>
+        <option value="essentials-0">What's Essential?: Round 1</option>
+        <option value="essentials-1">What's Essential?: Round 2</option>
+        <option value="essentials-2">What's Essential?: Round 3</option>
         <option value="module-8">Review &amp; Complete</option>
+        <option value="archetype">Archetype Results</option>
       </select>
     </label>
   ) : null;
@@ -2341,6 +2489,24 @@ export default function FriendsFirst() {
       </>
     );
 
+  if (completed && showArchetype)
+    return (
+      <main className="ff-shell ff-about-theme ff-strengths-theme ff-archetype-theme">
+        {previewNavigation}
+        <ArchetypeResults
+          result={archetypeResult}
+          onBack={() => setShowArchetype(false)}
+          onReview={() => {
+            setShowArchetype(false);
+            setCompleted(false);
+            setStep(8);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onDownload={downloadPdf}
+        />
+      </main>
+    );
+
   if (completed)
     return (
       <main className="ff-success">
@@ -2363,12 +2529,9 @@ export default function FriendsFirst() {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => {
-                setCompleted(false);
-                setStep(8);
-              }}
+              onClick={() => setShowArchetype(true)}
             >
-              Review responses
+              Take me to my archetype
             </Button>
           </div>
           <button
@@ -2407,7 +2570,7 @@ export default function FriendsFirst() {
                           : step === 6
                             ? 'Who Would You Choose'
                             : step === 7
-                              ? 'Essentials'
+                              ? "What's Essential?"
                               : 'Review & Complete'}
             </span>
             <span>{screenProgress}% complete</span>
@@ -3260,6 +3423,7 @@ export default function FriendsFirst() {
                     multi
                     max={5}
                     twoColumn
+                    cards
                   />
                 </Question>
               )}
@@ -3284,7 +3448,8 @@ export default function FriendsFirst() {
                     onChange={(value) => setAnswer('keep3', value)}
                     multi
                     max={3}
-                    twoColumn
+                    singleColumn
+                    cards
                   />
                 </Question>
               )}
@@ -3296,11 +3461,8 @@ export default function FriendsFirst() {
                       <p>One final decision.</p>
                       <p>
                         Imagine you can guarantee only <strong>one</strong>{' '}
-                        quality in a future partner.
-                      </p>
-                      <p>
-                        Select the single quality you would keep if all others
-                        were uncertain.
+                        quality in a future partner. Select the single quality
+                        you would keep if all others were uncertain.
                       </p>
                     </div>
                   }
@@ -3312,6 +3474,7 @@ export default function FriendsFirst() {
                     )}
                     value={answers.keep1}
                     onChange={(value) => setAnswer('keep1', value)}
+                    cards
                   />
                 </Question>
               )}
