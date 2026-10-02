@@ -70,9 +70,9 @@ const modules = [
     'Choose between realistic relationship strengths when they compete.',
   ],
   [
-    'Keep Only...',
+    'Essentials',
     'Module 7',
-    'Narrow your priorities from five traits to one.',
+    'Identify the qualities you would protect when choices become difficult.',
   ],
   [
     'Review & Complete',
@@ -183,6 +183,16 @@ const partnerTraits = [
   'Physical Attraction',
   'Ambition',
 ];
+const essentialTraits = [
+  'Kindness',
+  'Reliability',
+  'Humor',
+  'Emotional Maturity',
+  'Communication',
+  'Physical Attraction',
+  'Ambition',
+  'Shared Values',
+];
 const lifeValues = [
   'Family',
   'Honesty',
@@ -209,6 +219,15 @@ const responseScale = [
   'Slightly Prefer Person B',
   'Probably Person B',
   'Definitely Person B',
+];
+const responseScaleLabels = [
+  'Definitely',
+  'Probably',
+  'Slightly',
+  'Equal preference',
+  'Slightly',
+  'Probably',
+  'Definitely',
 ];
 const scenarios = [
   [
@@ -394,46 +413,49 @@ function TradeoffScale({
       <legend className="ff-visually-hidden">
         Choose the response that most closely reflects what you would do.
       </legend>
-      <div className="ff-scale-headings" aria-hidden="true">
-        <span>Person A</span>
-        <span>Equal preference</span>
-        <span>Person B</span>
-      </div>
-      <div className="ff-slider-wrap">
-        <div className="ff-slider-dots" aria-hidden="true">
-          {responseScale.map((option) => (
-            <span key={option} />
+      <div className="ff-slider-control">
+        <div className="ff-slider-wrap">
+          <div className="ff-slider-dots" aria-hidden="true">
+            {responseScale.map((option, index) => (
+              <span
+                className={selectedIndex === index ? 'is-selected' : ''}
+                key={option}
+              />
+            ))}
+          </div>
+          <input
+            className={`ff-decision-slider ${selectedIndex >= 0 ? 'has-value' : ''}`}
+            type="range"
+            min="0"
+            max="6"
+            step="1"
+            value={sliderValue}
+            aria-label="Partner preference"
+            aria-valuetext={
+              selectedIndex >= 0
+                ? responseScale[selectedIndex]
+                : 'No choice selected'
+            }
+            onChange={(event) =>
+              onChange(responseScale[Number(event.currentTarget.value)])
+            }
+          />
+        </div>
+        <div className="ff-slider-labels">
+          {responseScale.map((option, index) => (
+            <button
+              type="button"
+              className={selectedIndex === index ? 'is-selected' : ''}
+              key={option}
+              onClick={() => onChange(option)}
+            >
+              <span className="ff-slider-label-short">
+                {responseScaleLabels[index]}
+              </span>
+              <span className="ff-slider-label-full">{option}</span>
+            </button>
           ))}
         </div>
-        <input
-          className={`ff-decision-slider ${selectedIndex >= 0 ? 'has-value' : ''}`}
-          type="range"
-          min="0"
-          max="6"
-          step="1"
-          value={sliderValue}
-          aria-label="Partner preference"
-          aria-valuetext={
-            selectedIndex >= 0
-              ? responseScale[selectedIndex]
-              : 'No choice selected'
-          }
-          onChange={(event) =>
-            onChange(responseScale[Number(event.currentTarget.value)])
-          }
-        />
-      </div>
-      <div className="ff-slider-labels">
-        {responseScale.map((option, index) => (
-          <button
-            type="button"
-            className={selectedIndex === index ? 'is-selected' : ''}
-            key={option}
-            onClick={() => onChange(option)}
-          >
-            {option}
-          </button>
-        ))}
       </div>
       <p className="ff-slider-value" aria-live="polite">
         {selectedIndex >= 0
@@ -636,7 +658,7 @@ const summaryGroups: Array<[string, Array<[string, string]>]> = [
     ],
   ],
   [
-    'Keep Only...',
+    'Essentials',
     [
       ['keep5', 'Five essential traits'],
       ['keep3', 'Three essential traits'],
@@ -714,10 +736,11 @@ const pdfQuestionLabels: Record<string, string> = {
   chooseMe:
     'Which three qualities would most likely make your ideal partner choose you?',
   keep5:
-    'Keep Only Five - You may keep only five of the following eight traits.',
+    'Round 1: Keep Five - Imagine you can guarantee only five of the following qualities in a future partner. Select the five qualities you would keep.',
   keep3:
-    'Keep Only Three - Keep only three of the five previously selected traits.',
-  keep1: 'Keep Only One - Keep only one of three previously selected traits.',
+    'Round 2: Keep Three - Choose the three previously selected qualities that would be hardest to give up.',
+  keep1:
+    'Round 3: Keep One - Select the single quality you would keep if all others were uncertain.',
 };
 
 function pdfQuestionLabel(key: string, fallback: string) {
@@ -1743,6 +1766,7 @@ export default function FriendsFirst() {
   const [loaded, setLoaded] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [showPreviewNavigation, setShowPreviewNavigation] = useState(false);
   const continueForwardRef = useRef<() => void>(() => {});
   const autoAdvanceTimer = useRef<number | undefined>(undefined);
 
@@ -1758,6 +1782,10 @@ export default function FriendsFirst() {
       /* Ignore unreadable local data. */
     }
     setLoaded(true);
+    setShowPreviewNavigation(
+      window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1',
+    );
   }, []);
   useEffect(() => {
     if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
@@ -1812,7 +1840,21 @@ export default function FriendsFirst() {
     }
     if (step === 6)
       return tradeoffsIntro || hasText(answers[`scenario${substep}`]);
-    if (step >= 3 && step <= 7) return moduleComplete(step, answers);
+    if (step === 7) {
+      if (substep === 0)
+        return (
+          hasList(answers.keep5, 5) && (answers.keep5 as string[]).length === 5
+        );
+      if (substep === 1)
+        return (
+          hasList(answers.keep3, 3) && (answers.keep3 as string[]).length === 3
+        );
+      return (
+        hasText(answers.keep1) &&
+        ((answers.keep3 as string[]) || []).includes(answers.keep1 as string)
+      );
+    }
+    if (step >= 3 && step <= 5) return moduleComplete(step, answers);
     return true;
   }, [
     aboutOverview,
@@ -1914,6 +1956,11 @@ export default function FriendsFirst() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    if (step === 7 && substep < 2) {
+      setSubstep((value) => value + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     const next = Math.min(modules.length - 1, step + 1);
     setStep(next);
     setSubstep(0);
@@ -1994,9 +2041,13 @@ export default function FriendsFirst() {
         setTradeoffsIntro(true);
       }
     } else if (step === 7) {
-      setStep(6);
-      setSubstep(scenarios.length - 1);
-      setTradeoffsIntro(false);
+      if (substep > 0) {
+        setSubstep((value) => value - 1);
+      } else {
+        setStep(6);
+        setSubstep(scenarios.length - 1);
+        setTradeoffsIntro(false);
+      }
     } else {
       setStep((value) => Math.max(0, value - 1));
       setSubstep(0);
@@ -2069,6 +2120,117 @@ export default function FriendsFirst() {
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+
+  const jumpToPreviewTarget = (target: string) => {
+    setCompleted(false);
+    setShowValidation(false);
+    setShowHome(target === 'home');
+    if (target === 'home') return;
+
+    setAboutOverview(false);
+    setConsiderationIntro(false);
+    setConsiderationOverview(false);
+    setTradeoffsIntro(false);
+
+    if (target === 'privacy') {
+      setStep(0);
+      setSubstep(0);
+    } else if (target === 'about-overview') {
+      setStep(1);
+      setSubstep(0);
+      setAboutOverview(true);
+    } else if (target.startsWith('about-')) {
+      const section = target.replace('about-', '');
+      setStep(1);
+      setSubstep(
+        Math.max(
+          0,
+          aboutScreens.findIndex(
+            (item) => item.toLowerCase().replaceAll(' & ', '-') === section,
+          ),
+        ),
+      );
+    } else if (target === 'pool-intro') {
+      setStep(2);
+      setSubstep(0);
+      setConsiderationIntro(true);
+    } else if (target === 'pool-overview') {
+      setStep(2);
+      setSubstep(0);
+      setConsiderationOverview(true);
+    } else if (target.startsWith('pool-')) {
+      const section = target.replace('pool-', '');
+      setStep(2);
+      setSubstep(
+        Math.max(
+          0,
+          considerationScreens.findIndex(
+            (item) => item.toLowerCase().replaceAll(' & ', '-') === section,
+          ),
+        ),
+      );
+    } else if (target === 'tradeoffs-intro') {
+      setStep(6);
+      setSubstep(0);
+      setTradeoffsIntro(true);
+    } else if (target.startsWith('challenge-')) {
+      setStep(6);
+      setSubstep(Number(target.replace('challenge-', '')));
+    } else if (target.startsWith('essentials-')) {
+      setStep(7);
+      setSubstep(Number(target.replace('essentials-', '')));
+    } else {
+      setStep(Number(target.replace('module-', '')));
+      setSubstep(0);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const previewNavigation = showPreviewNavigation ? (
+    <label className="ff-preview-navigation">
+      <span>Preview navigation</span>
+      <select
+        defaultValue=""
+        onChange={(event) => {
+          if (event.currentTarget.value)
+            jumpToPreviewTarget(event.currentTarget.value);
+          event.currentTarget.value = '';
+        }}
+      >
+        <option value="" disabled>
+          Jump to…
+        </option>
+        <option value="home">Homepage</option>
+        <option value="privacy">Privacy Notice</option>
+        <option value="about-overview">About You: Sections</option>
+        <option value="about-basics">About You: Basics</option>
+        <option value="about-identity">About You: Identity</option>
+        <option value="about-lifestyle">About You: Lifestyle</option>
+        <option value="about-family-pets">About You: Family &amp; Pets</option>
+        <option value="pool-intro">Your Dating Pool: Introduction</option>
+        <option value="pool-overview">Your Dating Pool: Sections</option>
+        <option value="pool-basics">Your Dating Pool: Basics</option>
+        <option value="pool-identity">Your Dating Pool: Identity</option>
+        <option value="pool-lifestyle">Your Dating Pool: Lifestyle</option>
+        <option value="pool-family-pets">
+          Your Dating Pool: Family &amp; Pets
+        </option>
+        <option value="module-3">Your Strengths</option>
+        <option value="module-4">What Matters Most</option>
+        <option value="module-5">Through Their Eyes</option>
+        <option value="tradeoffs-intro">Who Would You Choose: Intro</option>
+        {scenarios.map((_, index) => (
+          <option key={index} value={`challenge-${index}`}>
+            Who Would You Choose: Challenge {index + 1}
+          </option>
+        ))}
+        <option value="essentials-0">Essentials: Round 1</option>
+        <option value="essentials-1">Essentials: Round 2</option>
+        <option value="essentials-2">Essentials: Round 3</option>
+        <option value="module-8">Review &amp; Complete</option>
+      </select>
+    </label>
+  ) : null;
 
   const screenSections =
     step === 1 ? aboutScreens : step === 2 ? considerationScreens : null;
@@ -2143,30 +2305,46 @@ export default function FriendsFirst() {
                 scenarios.length) *
                 100,
             )
-          : Math.round((step / 8) * 100);
+          : step === 7
+            ? Math.round(
+                ((((answers.keep5 as string[]) || []).length / 5 +
+                  ((answers.keep3 as string[]) || []).length / 3 +
+                  (hasText(answers.keep1) ? 1 : 0)) /
+                  3) *
+                  100,
+              )
+            : Math.round((step / 8) * 100);
 
   if (showHome)
     return (
-      <main className="ff-home">
-        <div className="ff-home-brand">
-          <div className="ff-home-arch" aria-hidden="true" />
-          <h1>
-            <strong>Friends</strong> <span>First</span>
-          </h1>
-        </div>
-        <p className="ff-home-tagline">
-          <span>Know what you want...</span>
-          <span>Find it here</span>
-        </p>
-        <Button size="lg" variant="outline" onClick={() => setShowHome(false)}>
-          Welcome
-        </Button>
-      </main>
+      <>
+        {previewNavigation}
+        <main className="ff-home">
+          <div className="ff-home-brand">
+            <div className="ff-home-arch" aria-hidden="true" />
+            <h1>
+              <strong>Friends</strong> <span>First</span>
+            </h1>
+          </div>
+          <p className="ff-home-tagline">
+            <span>Know what you want...</span>
+            <span>Find it here</span>
+          </p>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => setShowHome(false)}
+          >
+            Welcome
+          </Button>
+        </main>
+      </>
     );
 
   if (completed)
     return (
       <main className="ff-success">
+        {previewNavigation}
         <ReviewSummary answers={answers} printable />
         <div className="ff-success-card">
           <div className="ff-success-mark">
@@ -2208,6 +2386,7 @@ export default function FriendsFirst() {
     <main
       className={`ff-shell ${step === 0 ? 'ff-privacy-theme' : step >= 1 && step <= 8 ? 'ff-about-theme' : ''} ${step === 2 ? 'ff-consideration-theme' : ''} ${step >= 3 && step <= 8 ? 'ff-strengths-theme' : ''} ${step === 8 ? 'ff-review-theme' : ''}`}
     >
+      {previewNavigation}
       <ReviewSummary answers={answers} printable />
       <section className="ff-main" id="friends-first-top">
         <div className="ff-progress">
@@ -2228,7 +2407,7 @@ export default function FriendsFirst() {
                           : step === 6
                             ? 'Who Would You Choose'
                             : step === 7
-                              ? 'Keep Only...'
+                              ? 'Essentials'
                               : 'Review & Complete'}
             </span>
             <span>{screenProgress}% complete</span>
@@ -2262,6 +2441,16 @@ export default function FriendsFirst() {
                   <p className="ff-section-subheading">
                     If you could pursue only one of these people, who would you
                     choose?
+                  </p>
+                )}
+                {step === 7 && (
+                  <p className="ff-section-subheading">
+                    Which qualities are essential to you in a long-term partner?
+                  </p>
+                )}
+                {step === 8 && (
+                  <p className="ff-section-subheading">
+                    Review your responses before completing the survey.
                   </p>
                 )}
               </header>
@@ -3018,9 +3207,7 @@ export default function FriendsFirst() {
               <p className="ff-challenge-count">
                 Challenge {substep + 1} of {scenarios.length}
               </p>
-              <div
-                className={`ff-profiles ${substep === 0 ? 'is-first-challenge' : ''}`}
-              >
+              <div className="ff-profiles">
                 <article>
                   <span>Partner A</span>
                   <ul>
@@ -3029,7 +3216,7 @@ export default function FriendsFirst() {
                     ))}
                   </ul>
                 </article>
-                <div>or</div>
+                <div>vs.</div>
                 <article>
                   <span>Partner B</span>
                   <ul>
@@ -3046,73 +3233,89 @@ export default function FriendsFirst() {
             </section>
           )}
           {step === 7 && (
-            <div className="ff-priority-module">
-              <div className="ff-instruction ff-priority-intro">
-                <p>
-                  Choose the traits that would be hardest for you to give up in
-                  a long-term romantic partner. As the exercise progresses, your
-                  choices will become more difficult.
-                </p>
-              </div>
-              <section className="ff-strengths-frame ff-priority-frame">
-                <div className="ff-priority-rounds">
-                  <Question
-                    title="Keep Only Five"
-                    description={
-                      <p className="ff-round-instruction">
-                        You may keep only <strong>five</strong> of the following{' '}
-                        <strong>eight</strong> traits.
+            <section
+              className={`ff-strengths-frame ff-priority-frame ff-priority-round-${substep + 1} ff-active-screen`}
+            >
+              {substep === 0 && (
+                <Question
+                  title="Round 1: Keep Five"
+                  description={
+                    <div className="ff-round-instruction">
+                      <p>
+                        Imagine you can guarantee only <strong>five</strong> of
+                        the following qualities in a future partner.
                       </p>
-                    }
-                    hint={`${((answers.keep5 as string[]) || []).length} of 5 selected`}
-                  >
-                    <Choices
-                      options={partnerTraits}
-                      value={answers.keep5}
-                      onChange={(value) => setAnswer('keep5', value)}
-                      multi
-                      max={5}
-                      twoColumn
-                    />
-                  </Question>
-                  <Question
-                    title="Keep Only Three"
-                    description={
-                      <p className="ff-round-instruction">
-                        Keep only <strong>three</strong> of the five previously
-                        selected traits.
+                      <p>
+                        Select the <strong>five</strong> qualities you would
+                        keep.
                       </p>
-                    }
-                    hint={`${((answers.keep3 as string[]) || []).length} of 3 selected`}
-                  >
-                    <Choices
-                      options={(answers.keep5 as string[]) || []}
-                      value={answers.keep3}
-                      onChange={(value) => setAnswer('keep3', value)}
-                      multi
-                      max={3}
-                      twoColumn
-                    />
-                  </Question>
-                  <Question
-                    title="Keep Only One"
-                    description={
-                      <p className="ff-round-instruction">
-                        Keep only <strong>one</strong> of three previously
-                        selected traits.
+                    </div>
+                  }
+                  hint={`${((answers.keep5 as string[]) || []).length} of 5 selected`}
+                >
+                  <Choices
+                    options={essentialTraits}
+                    value={answers.keep5}
+                    onChange={(value) => setAnswer('keep5', value)}
+                    multi
+                    max={5}
+                    twoColumn
+                  />
+                </Question>
+              )}
+              {substep === 1 && (
+                <Question
+                  title="Round 2: Keep Three"
+                  description={
+                    <p className="ff-round-instruction">
+                      Now imagine you can guarantee only <strong>three</strong>{' '}
+                      of the qualities you selected in the previous round.
+                      Choose the <strong>three</strong> qualities that would be
+                      hardest to give up.
+                    </p>
+                  }
+                  hint={`${((answers.keep3 as string[]) || []).length} of 3 selected`}
+                >
+                  <Choices
+                    options={essentialTraits.filter((trait) =>
+                      ((answers.keep5 as string[]) || []).includes(trait),
+                    )}
+                    value={answers.keep3}
+                    onChange={(value) => setAnswer('keep3', value)}
+                    multi
+                    max={3}
+                    twoColumn
+                  />
+                </Question>
+              )}
+              {substep === 2 && (
+                <Question
+                  title="Round 3: Keep One"
+                  description={
+                    <div className="ff-round-instruction">
+                      <p>One final decision.</p>
+                      <p>
+                        Imagine you can guarantee only <strong>one</strong>{' '}
+                        quality in a future partner.
                       </p>
-                    }
-                    hint={`${hasText(answers.keep1) ? 1 : 0} of 1 selected`}
-                  >
-                    <Choices
-                      options={(answers.keep3 as string[]) || []}
-                      value={answers.keep1}
-                      onChange={(value) => setAnswer('keep1', value)}
-                    />
-                  </Question>
-                </div>
-              </section>
-            </div>
+                      <p>
+                        Select the single quality you would keep if all others
+                        were uncertain.
+                      </p>
+                    </div>
+                  }
+                  hint={`${hasText(answers.keep1) ? 1 : 0} of 1 selected`}
+                >
+                  <Choices
+                    options={essentialTraits.filter((trait) =>
+                      ((answers.keep3 as string[]) || []).includes(trait),
+                    )}
+                    value={answers.keep1}
+                    onChange={(value) => setAnswer('keep1', value)}
+                  />
+                </Question>
+              )}
+            </section>
           )}
           {step === 5 && (
             <section className="ff-strengths-frame ff-reciprocal-frame">
@@ -3142,7 +3345,7 @@ export default function FriendsFirst() {
             </section>
           )}
           {step === 8 && (
-            <div className="ff-review-wrap">
+            <section className="ff-strengths-frame ff-review-wrap">
               <div className="ff-review-toolbar">
                 <p>
                   Nothing is sent to a server. The PDF is generated on this
@@ -3153,7 +3356,7 @@ export default function FriendsFirst() {
                 </Button>
               </div>
               <ReviewSummary answers={answers} />
-            </div>
+            </section>
           )}
 
           <footer className="ff-footer">
