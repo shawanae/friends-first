@@ -820,7 +820,7 @@ function ReviewSummary({
     <div className={printable ? 'ff-print-summary' : 'ff-review'}>
       {printable && (
         <div className="ff-print-title">
-          <h1>Friends First</h1>
+          <FriendsFirstLogo variant="print" />
           <p>
             Private response summary ·{' '}
             <span suppressHydrationWarning>
@@ -842,6 +842,29 @@ function ReviewSummary({
           </dl>
         </section>
       ))}
+    </div>
+  );
+}
+
+function FriendsFirstLogo({
+  variant,
+  className = '',
+  heading = false,
+}: {
+  variant: 'hero' | 'compact' | 'card' | 'print';
+  className?: string;
+  heading?: boolean;
+}) {
+  const Wordmark = heading ? 'h1' : 'span';
+  return (
+    <div
+      className={`ff-logo ff-logo--${variant} ${className}`.trim()}
+      aria-label="Friends First"
+    >
+      <span className="ff-logo-arch" aria-hidden="true" />
+      <Wordmark className="ff-logo-wordmark">
+        <strong>Friends</strong> <span>First</span>
+      </Wordmark>
     </div>
   );
 }
@@ -2499,12 +2522,11 @@ export default function FriendsFirst() {
       <>
         {previewNavigation}
         <main className="ff-home">
-          <div className="ff-home-brand">
-            <div className="ff-home-arch" aria-hidden="true" />
-            <h1>
-              <strong>Friends</strong> <span>First</span>
-            </h1>
-          </div>
+          <FriendsFirstLogo
+            variant="hero"
+            className="ff-home-brand"
+            heading
+          />
           <p className="ff-home-tagline">
             <span>Know what you want...</span>
             <span>Find it here</span>
@@ -2547,7 +2569,7 @@ export default function FriendsFirst() {
           <div className="ff-success-mark">
             <HeartHandshake />
           </div>
-          <p className="ff-kicker">Friends First</p>
+          <FriendsFirstLogo variant="card" className="ff-success-logo" />
           <h1>Your reflection is complete.</h1>
           <p>
             Your responses remain on this device. Nothing was sent to or stored
@@ -2584,8 +2606,9 @@ export default function FriendsFirst() {
       <ReviewSummary answers={answers} printable />
       <section className="ff-main" id="friends-first-top">
         <div className="ff-progress">
-          <div>
-            <span>
+          <div className="ff-progress-meta">
+            <FriendsFirstLogo variant="compact" />
+            <span className="ff-progress-section">
               {step === 0
                 ? 'Privacy Notice'
                 : step === 1
@@ -2604,7 +2627,9 @@ export default function FriendsFirst() {
                               ? "What's Essential?"
                               : 'Review & Complete'}
             </span>
-            <span>{screenProgress}% complete</span>
+            <span className="ff-progress-percent">
+              {screenProgress}% complete
+            </span>
           </div>
           <Progress value={screenProgress} />
         </div>

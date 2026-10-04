@@ -18,11 +18,20 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Friends First — Start with what’s true',
     description: 'A private relationship reflection about compatibility, values, and what matters most.',
+    images: [
+      {
+        url: '/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Friends First logo',
+      },
+    ],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'Friends First — Start with what’s true',
     description: 'A private relationship reflection about compatibility, values, and what matters most.',
+    images: ['/og.png'],
   },
 };
 

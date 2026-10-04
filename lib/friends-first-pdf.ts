@@ -33,6 +33,8 @@ type PdfLine = {
   font: 'regular' | 'bold';
   size: number;
   gapAfter: number;
+  align?: 'left' | 'center';
+  role?: 'brand';
   keepWithNext?: boolean;
 };
 
@@ -41,6 +43,9 @@ const PAGE_HEIGHT = 792;
 const MARGIN = 54;
 const START_Y = 738;
 const BOTTOM_Y = 54;
+const PDF_LINEN = '0.9765 0.9216 0.8784';
+const PDF_ENVIRONMENT = '0.1686 0.0706 0.1255';
+const PDF_ACTION = '0.8118 0.4078 0.2627';
 
 function escapePdfText(value: string) {
   return value.replace(/([\\()])/g, '\\$1');
@@ -94,12 +99,20 @@ function wrapText(
 
 function makeLines(sections: PdfSection[]) {
   const lines: PdfLine[] = [
-    { text: 'Friends First', font: 'bold', size: 22, gapAfter: 6 },
+    {
+      text: 'Friends First',
+      font: 'bold',
+      size: 22,
+      gapAfter: 6,
+      align: 'center',
+      role: 'brand',
+    },
     {
       text: `Private response summary - ${new Date().toLocaleDateString('en-US')}`,
       font: 'regular',
       size: 10,
       gapAfter: 18,
+      align: 'center',
     },
   ];
 
@@ -176,9 +189,9 @@ function imageForLine(line: PdfLine, name: string): PdfImage {
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Unable to render PDF text.');
   context.scale(scale, scale);
-  context.fillStyle = '#fff';
+  context.fillStyle = '#f9ebe0';
   context.fillRect(0, 0, width, height);
-  context.fillStyle = '#111';
+  context.fillStyle = '#2b1220';
   context.font = `${line.font === 'bold' ? 'bold ' : ''}${line.size}px Arial, sans-serif`;
   context.fillText(line.text, 0, line.size);
   const encoded = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
@@ -193,11 +206,42 @@ function imageForLine(line: PdfLine, name: string): PdfImage {
 
 function pageStream(lines: PdfLine[], pageNumber: number, pageCount: number) {
   let y = START_Y;
-  const commands: string[] = [];
+  const commands: string[] = [
+    `${PDF_LINEN} rg 0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT} re f`,
+    `${PDF_ACTION} rg ${MARGIN} 758 ${PAGE_WIDTH - 2 * MARGIN} 5 re f`,
+    `${PDF_ENVIRONMENT} rg`,
+  ];
   const images: PdfImage[] = [];
   for (const line of lines) {
     if (line.text) {
-      if (/[^\x20-\x7E]/.test(line.text)) {
+      if (line.role === 'brand') {
+        const friendsText = 'Friends';
+        const firstText = ' First';
+        const friendsWidth = friendsText.length * line.size * 0.5;
+        const firstWidth = firstText.length * line.size * 0.48;
+        const textWidth = friendsWidth + firstWidth;
+        const logoScale = line.size / 104;
+        const archWidth = 84 * logoScale;
+        const archHeight = 125 * logoScale;
+        const archOffset = 17 * logoScale;
+        const archMargin = 17 * logoScale;
+        const archLift = 3 * logoScale;
+        const groupWidth = archWidth - archMargin + textWidth;
+        const groupX = (PAGE_WIDTH - groupWidth) / 2;
+        const brandBaseline = y - 6;
+        const archX = groupX + archOffset;
+        const archBottom = brandBaseline - 4 + archLift;
+        const archTop = archBottom + archHeight;
+        const radius = archWidth / 2;
+        const curve = radius * 0.5523;
+        const archShoulder = archTop - radius;
+        const wordmarkX = groupX + archWidth - archMargin;
+        commands.push(
+          `${PDF_ACTION} rg ${archX.toFixed(2)} ${archBottom.toFixed(2)} m ${archX.toFixed(2)} ${archShoulder.toFixed(2)} l ${archX.toFixed(2)} ${(archShoulder + curve).toFixed(2)} ${(archX + radius - curve).toFixed(2)} ${archTop.toFixed(2)} ${(archX + radius).toFixed(2)} ${archTop.toFixed(2)} c ${(archX + radius + curve).toFixed(2)} ${archTop.toFixed(2)} ${(archX + archWidth).toFixed(2)} ${(archShoulder + curve).toFixed(2)} ${(archX + archWidth).toFixed(2)} ${archShoulder.toFixed(2)} c ${(archX + archWidth).toFixed(2)} ${archBottom.toFixed(2)} l h f`,
+          `${PDF_ENVIRONMENT} rg BT /F2 ${line.size} Tf 1 0 0 1 ${wordmarkX.toFixed(2)} ${brandBaseline.toFixed(2)} Tm (${friendsText}) Tj ET`,
+          `${PDF_ENVIRONMENT} rg BT /F1 ${line.size} Tf 1 0 0 1 ${(wordmarkX + friendsWidth).toFixed(2)} ${brandBaseline.toFixed(2)} Tm (${firstText}) Tj ET`,
+        );
+      } else if (/[^\x20-\x7E]/.test(line.text)) {
         const image = imageForLine(line, `Im${images.length + 1}`);
         images.push(image);
         const actualText = `FEFF${Array.from(
@@ -209,15 +253,22 @@ function pageStream(lines: PdfLine[], pageNumber: number, pageCount: number) {
         );
       } else {
         const fontName = line.font === 'bold' ? 'F2' : 'F1';
+        const estimatedWidth =
+          line.text.length * line.size * (line.font === 'bold' ? 0.5 : 0.48);
+        const x =
+          line.align === 'center'
+            ? Math.max(MARGIN, (PAGE_WIDTH - estimatedWidth) / 2)
+            : MARGIN;
         commands.push(
-          `BT /${fontName} ${line.size} Tf 1 0 0 1 ${MARGIN} ${y.toFixed(2)} Tm (${escapePdfText(line.text)}) Tj ET`,
+          `BT /${fontName} ${line.size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${escapePdfText(line.text)}) Tj ET`,
         );
       }
     }
     y -= line.size * 1.25 + line.gapAfter;
   }
   commands.push(
-    `BT /F1 8 Tf 1 0 0 1 ${PAGE_WIDTH - 96} 30 Tm (Page ${pageNumber} of ${pageCount}) Tj ET`,
+    `${PDF_ACTION} rg ${MARGIN} 43 ${PAGE_WIDTH - 2 * MARGIN} 1 re f`,
+    `${PDF_ENVIRONMENT} rg BT /F1 8 Tf 1 0 0 1 ${PAGE_WIDTH - 96} 30 Tm (Page ${pageNumber} of ${pageCount}) Tj ET`,
   );
   return { stream: commands.join('\n'), images };
 }
