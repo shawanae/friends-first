@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -298,6 +299,7 @@ function NumberInput(props: React.ComponentProps<typeof Input>) {
   );
 }
 
+/* oxlint-disable jsx-a11y/prefer-tag-over-role -- The focusable tooltip is inline inside an option label. */
 function OptionLabel({ option }: { option: string }) {
   if (option !== AMERICAN_INDIAN_LABEL) return <span>{option}</span>;
   return (
@@ -305,6 +307,7 @@ function OptionLabel({ option }: { option: string }) {
       <span>{option}</span>
       <span
         className="ff-tooltip-trigger"
+        role="button"
         tabIndex={0}
         aria-label={`${option}: ${AMERICAN_INDIAN_DESCRIPTION}`}
       >
@@ -316,6 +319,7 @@ function OptionLabel({ option }: { option: string }) {
     </span>
   );
 }
+/* oxlint-enable jsx-a11y/prefer-tag-over-role */
 
 const AutoAdvanceContext = createContext<((value: string) => void) | null>(
   null,
@@ -343,6 +347,7 @@ function Choices({
   cards?: boolean;
 }) {
   const autoAdvance = useContext(AutoAdvanceContext);
+  const idPrefix = useId();
   const selected = Array.isArray(value) ? value : [];
   const exclusiveSelected = Boolean(exclusive && selected.includes(exclusive));
   const isYesNo =
@@ -354,15 +359,17 @@ function Choices({
   if (multi)
     return (
       <div className={layoutClass}>
-        {options.map((option) => {
+        {options.map((option, index) => {
           const active = selected.includes(option);
           const disabled = exclusiveSelected && option !== exclusive;
           return (
             <label
+              htmlFor={`${idPrefix}-${index}`}
               className={`ff-choice ${active ? 'is-selected' : ''} ${disabled ? 'is-disabled' : ''}`}
               key={option}
             >
               <Checkbox
+                id={`${idPrefix}-${index}`}
                 checked={active}
                 disabled={disabled}
                 onCheckedChange={() => {
@@ -392,12 +399,13 @@ function Choices({
       }}
       className={layoutClass}
     >
-      {options.map((option) => (
+      {options.map((option, index) => (
         <label
+          htmlFor={`${idPrefix}-${index}`}
           className={`ff-choice ${value === option ? 'is-selected' : ''}`}
           key={option}
         >
-          <RadioGroupItem value={option} />
+          <RadioGroupItem id={`${idPrefix}-${index}`} value={option} />
           <OptionLabel option={option} />
         </label>
       ))}
@@ -487,9 +495,10 @@ function HeightFields({
 }) {
   return (
     <div className="ff-inline-fields">
-      <label>
+      <label htmlFor={`${prefix}-feet`}>
         <span>Feet</span>
         <NumberInput
+          id={`${prefix}-feet`}
           type="number"
           min="3"
           max="8"
@@ -499,9 +508,10 @@ function HeightFields({
           placeholder={startAtZero ? '0' : undefined}
         />
       </label>
-      <label>
+      <label htmlFor={`${prefix}-inches`}>
         <span>Inches</span>
         <NumberInput
+          id={`${prefix}-inches`}
           type="number"
           min="0"
           max="11"
@@ -836,6 +846,7 @@ function ReviewSummary({
   );
 }
 
+/* oxlint-disable jsx-a11y/prefer-tag-over-role -- The custom progress bars include accessible values and labels. */
 function ArchetypeResults({
   result,
   onBack,
@@ -958,6 +969,7 @@ function ArchetypeResults({
     </section>
   );
 }
+/* oxlint-enable jsx-a11y/prefer-tag-over-role */
 
 function validNumber(value: AnswerValue | undefined, min: number, max: number) {
   if (value === undefined || value === '') return false;
@@ -1511,9 +1523,10 @@ function ConsiderationScreen({
   const screens = [
     <Question key="age-range" title="What age range would you consider dating?">
       <div className="ff-inline-fields">
-        <label>
+        <label htmlFor="consideration-min-age">
           <span>Minimum age</span>
           <NumberInput
+            id="consideration-min-age"
             type="number"
             min="20"
             max="100"
@@ -1521,9 +1534,10 @@ function ConsiderationScreen({
             onChange={(event) => setAnswer('minAge', event.target.value)}
           />
         </label>
-        <label>
+        <label htmlFor="consideration-max-age">
           <span>Maximum age</span>
           <NumberInput
+            id="consideration-max-age"
             type="number"
             min="20"
             max="100"
@@ -1901,34 +1915,48 @@ export default function FriendsFirst() {
   const [showPreviewNavigation, setShowPreviewNavigation] = useState(false);
   const continueForwardRef = useRef<() => void>(() => {});
   const autoAdvanceTimer = useRef<number | undefined>(undefined);
+  const shouldPersistResponses = useRef(false);
   const archetypeResult = useMemo(
     () => calculateArchetypeResult(answers),
     [answers],
   );
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved)
-        setAnswers({
-          ...blankAnswers,
-          ...migrateSavedAnswers(JSON.parse(saved) as Answers),
-        });
-    } catch {
-      /* Ignore unreadable local data. */
-    }
-    setLoaded(true);
-    setShowPreviewNavigation(
-      window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1',
-    );
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          shouldPersistResponses.current = true;
+          setAnswers({
+            ...blankAnswers,
+            ...migrateSavedAnswers(JSON.parse(saved) as Answers),
+          });
+        }
+      } catch {
+        /* Ignore unreadable local data. */
+      }
+      setLoaded(true);
+      setShowPreviewNavigation(
+        window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1',
+      );
+    });
+    return () => {
+      active = false;
+    };
   }, []);
   useEffect(() => {
-    if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
+    if (!loaded) return;
+    if (shouldPersistResponses.current)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
+    else localStorage.removeItem(STORAGE_KEY);
   }, [answers, loaded]);
   useEffect(() => () => window.clearTimeout(autoAdvanceTimer.current), []);
 
   const setAnswer = (key: string, value: AnswerValue) => {
+    shouldPersistResponses.current = true;
     setShowValidation(false);
     setAnswers((previous) => {
       const next = { ...previous, [key]: value };
@@ -2102,7 +2130,9 @@ export default function FriendsFirst() {
     setSubstep(0);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  continueForwardRef.current = continueForward;
+  useEffect(() => {
+    continueForwardRef.current = continueForward;
+  });
 
   const handleSingleChoiceSelection = (value: string) => {
     const revealsFollowUp =
@@ -2232,6 +2262,7 @@ export default function FriendsFirst() {
     )
       return;
     localStorage.removeItem(STORAGE_KEY);
+    shouldPersistResponses.current = false;
     setAnswers(blankAnswers);
     setStep(0);
     setSubstep(0);
@@ -2371,9 +2402,9 @@ export default function FriendsFirst() {
             Who Would You Choose: Challenge {index + 1}
           </option>
         ))}
-        <option value="essentials-0">What's Essential?: Round 1</option>
-        <option value="essentials-1">What's Essential?: Round 2</option>
-        <option value="essentials-2">What's Essential?: Round 3</option>
+        <option value="essentials-0">What&apos;s Essential?: Round 1</option>
+        <option value="essentials-1">What&apos;s Essential?: Round 2</option>
+        <option value="essentials-2">What&apos;s Essential?: Round 3</option>
         <option value="module-8">Review &amp; Complete</option>
         <option value="archetype">Archetype Results</option>
       </select>
@@ -3005,9 +3036,10 @@ export default function FriendsFirst() {
             <div className="ff-stack">
               <Question title="What age range would you consider dating?">
                 <div className="ff-inline-fields">
-                  <label>
+                  <label htmlFor="legacy-min-age">
                     <span>Minimum age</span>
                     <NumberInput
+                      id="legacy-min-age"
                       type="number"
                       min="20"
                       max="100"
@@ -3017,9 +3049,10 @@ export default function FriendsFirst() {
                       }
                     />
                   </label>
-                  <label>
+                  <label htmlFor="legacy-max-age">
                     <span>Maximum age</span>
                     <NumberInput
+                      id="legacy-max-age"
                       type="number"
                       min="20"
                       max="100"

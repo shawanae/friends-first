@@ -42,27 +42,46 @@ const MARGIN = 54;
 const START_Y = 738;
 const BOTTOM_Y = 54;
 
-function asciiText(value: string) {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[\u2013\u2014]/g, '-')
-    .replace(/\u00b7/g, '-')
-    .replace(/[^\x20-\x7E]/g, '');
-}
-
 function escapePdfText(value: string) {
-  return asciiText(value).replace(/([\\()])/g, '\\$1');
+  return value.replace(/([\\()])/g, '\\$1');
 }
 
-function wrapText(value: string, maxCharacters: number) {
-  const words = asciiText(value).trim().split(/\s+/).filter(Boolean);
+function wrapText(
+  value: string,
+  maxCharacters: number,
+  fontSize: number,
+  bold = false,
+) {
+  if (/[^\x20-\x7E]/.test(value)) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to measure PDF text.');
+    context.font = `${bold ? 'bold ' : ''}${fontSize}px Arial, sans-serif`;
+    const lines: string[] = [];
+    let current = '';
+    const graphemes = new Intl.Segmenter(undefined, {
+      granularity: 'grapheme',
+    }).segment(value.trim().replace(/\s+/g, ' '));
+    for (const { segment: character } of graphemes) {
+      if (
+        current &&
+        context.measureText(current + character).width > PAGE_WIDTH - 2 * MARGIN
+      ) {
+        lines.push(current.trimEnd());
+        current = character.trimStart();
+      } else {
+        current += character;
+      }
+    }
+    lines.push(current || '');
+    return lines;
+  }
+  const words = value.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [''];
   const lines: string[] = [];
   let current = words[0];
   for (const word of words.slice(1)) {
-    if (`${current} ${word}`.length <= maxCharacters) {
+    if (Array.from(`${current} ${word}`).length <= maxCharacters) {
       current += ` ${word}`;
     } else {
       lines.push(current);
@@ -93,7 +112,7 @@ function makeLines(sections: PdfSection[]) {
       keepWithNext: true,
     });
     for (const row of section.rows) {
-      const wrappedLabels = wrapText(row.label, 86);
+      const wrappedLabels = wrapText(row.label, 86, 9, true);
       for (const [index, wrapped] of wrappedLabels.entries()) {
         lines.push({
           text: wrapped,
@@ -103,7 +122,7 @@ function makeLines(sections: PdfSection[]) {
           keepWithNext: true,
         });
       }
-      const wrappedLines = wrapText(row.value, 86);
+      const wrappedLines = wrapText(row.value, 86, 10);
       for (const [index, wrapped] of wrappedLines.entries()) {
         lines.push({
           text: wrapped,
@@ -145,58 +164,123 @@ function paginate(lines: PdfLine[]) {
   return pages;
 }
 
+type PdfImage = { name: string; width: number; height: number; bytes: Uint8Array };
+
+function imageForLine(line: PdfLine, name: string): PdfImage {
+  const scale = 3;
+  const width = PAGE_WIDTH - 2 * MARGIN;
+  const height = line.size * 1.4;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(width * scale);
+  canvas.height = Math.ceil(height * scale);
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Unable to render PDF text.');
+  context.scale(scale, scale);
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = '#111';
+  context.font = `${line.font === 'bold' ? 'bold ' : ''}${line.size}px Arial, sans-serif`;
+  context.fillText(line.text, 0, line.size);
+  const encoded = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
+  const binary = atob(encoded);
+  return {
+    name,
+    width: canvas.width,
+    height: canvas.height,
+    bytes: Uint8Array.from(binary, (character) => character.charCodeAt(0)),
+  };
+}
+
 function pageStream(lines: PdfLine[], pageNumber: number, pageCount: number) {
   let y = START_Y;
   const commands: string[] = [];
+  const images: PdfImage[] = [];
   for (const line of lines) {
     if (line.text) {
-      const fontName = line.font === 'bold' ? 'F2' : 'F1';
-      commands.push(
-        `BT /${fontName} ${line.size} Tf 1 0 0 1 ${MARGIN} ${y.toFixed(2)} Tm (${escapePdfText(line.text)}) Tj ET`,
-      );
+      if (/[^\x20-\x7E]/.test(line.text)) {
+        const image = imageForLine(line, `Im${images.length + 1}`);
+        images.push(image);
+        const actualText = `FEFF${Array.from(
+          { length: line.text.length },
+          (_, index) => line.text.charCodeAt(index).toString(16).padStart(4, '0'),
+        ).join('')}`;
+        commands.push(
+          `/Span << /ActualText <${actualText}> >> BDC q ${PAGE_WIDTH - 2 * MARGIN} 0 0 ${(line.size * 1.4).toFixed(2)} ${MARGIN} ${(y - line.size * 0.4).toFixed(2)} cm /${image.name} Do Q EMC`,
+        );
+      } else {
+        const fontName = line.font === 'bold' ? 'F2' : 'F1';
+        commands.push(
+          `BT /${fontName} ${line.size} Tf 1 0 0 1 ${MARGIN} ${y.toFixed(2)} Tm (${escapePdfText(line.text)}) Tj ET`,
+        );
+      }
     }
     y -= line.size * 1.25 + line.gapAfter;
   }
   commands.push(
     `BT /F1 8 Tf 1 0 0 1 ${PAGE_WIDTH - 96} 30 Tm (Page ${pageNumber} of ${pageCount}) Tj ET`,
   );
-  return commands.join('\n');
+  return { stream: commands.join('\n'), images };
 }
 
 export function buildFriendsFirstPdf(sections: PdfSection[]) {
   const pages = paginate(makeLines(sections));
-  const objects: string[] = [];
-  const pageObjectNumbers = pages.map((_, index) => 5 + index * 2);
-
-  objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
-  objects[2] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(' ')}] /Count ${pages.length} >>`;
-  objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
-  objects[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
-
+  const encoder = new TextEncoder();
+  const objects: Uint8Array[] = [];
+  const encoded = (value: string) => encoder.encode(value);
+  const join = (parts: Uint8Array[]) => {
+    const result = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+    let offset = 0;
+    for (const part of parts) {
+      result.set(part, offset);
+      offset += part.length;
+    }
+    return result;
+  };
+  const pageNumbers: number[] = [];
+  objects[1] = encoded('<< /Type /Catalog /Pages 2 0 R >>');
+  objects[3] = encoded('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  objects[4] = encoded('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
   pages.forEach((page, index) => {
-    const pageNumber = 5 + index * 2;
+    const pageNumber = objects.length;
+    pageNumbers.push(pageNumber);
+    const { stream, images } = pageStream(page, index + 1, pages.length);
     const contentNumber = pageNumber + 1;
-    const stream = pageStream(page, index + 1, pages.length);
-    objects[pageNumber] =
+    const imageNumbers = images.map((_, imageIndex) => contentNumber + 1 + imageIndex);
+    const imageResources = images.map((image, imageIndex) => `/${image.name} ${imageNumbers[imageIndex]} 0 R`).join(' ');
+    objects[pageNumber] = encoded(
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] ` +
-      `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentNumber} 0 R >>`;
-    objects[contentNumber] =
-      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+        `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << ${imageResources} >> >> /Contents ${contentNumber} 0 R >>`,
+    );
+    const streamBytes = encoded(stream);
+    objects[contentNumber] = join([
+      encoded(`<< /Length ${streamBytes.length} >>\nstream\n`),
+      streamBytes,
+      encoded('\nendstream'),
+    ]);
+    images.forEach((image, imageIndex) => {
+      objects[imageNumbers[imageIndex]] = join([
+        encoded(`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.bytes.length} >>\nstream\n`),
+        image.bytes,
+        encoded('\nendstream'),
+      ]);
+    });
   });
+  objects[2] = encoded(`<< /Type /Pages /Kids [${pageNumbers.map((number) => `${number} 0 R`).join(' ')}] /Count ${pages.length} >>`);
 
-  let document = '%PDF-1.4\n';
+  const documentParts: Uint8Array[] = [encoded('%PDF-1.4\n')];
   const offsets = [0];
   for (let index = 1; index < objects.length; index += 1) {
-    offsets[index] = document.length;
-    document += `${index} 0 obj\n${objects[index]}\nendobj\n`;
+    offsets[index] = documentParts.reduce((size, part) => size + part.length, 0);
+    documentParts.push(encoded(`${index} 0 obj\n`), objects[index], encoded('\nendobj\n'));
   }
-  const xrefOffset = document.length;
-  document += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+  const xrefOffset = documentParts.reduce((size, part) => size + part.length, 0);
+  let trailer = `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
   for (let index = 1; index < objects.length; index += 1) {
-    document += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+    trailer += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
   }
-  document +=
+  trailer +=
     `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\n` +
     `startxref\n${xrefOffset}\n%%EOF\n`;
-  return new TextEncoder().encode(document);
+  documentParts.push(encoded(trailer));
+  return join(documentParts);
 }

@@ -22,6 +22,7 @@ const buttonGroupVariants = cva(
   },
 );
 
+/* oxlint-disable jsx-a11y/prefer-tag-over-role -- Button groups may contain controls outside a form. */
 function ButtonGroup({
   className,
   orientation,
@@ -37,6 +38,7 @@ function ButtonGroup({
     />
   );
 }
+/* oxlint-enable jsx-a11y/prefer-tag-over-role */
 
 function ButtonGroupText({
   className,
