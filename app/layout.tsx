@@ -13,11 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Friends First — Relationship Reflection Survey',
-  description: 'A private relationship reflection about compatibility, values, preferences, and priorities.',
+  title: 'Friends First',
+  description:
+    'A relationship reflection about compatibility, values, and what matters most.',
   openGraph: {
-    title: 'Friends First — Start with what’s true',
-    description: 'A private relationship reflection about compatibility, values, and what matters most.',
+    title: 'Friends First',
+    description:
+      'A relationship reflection about compatibility, values, and what matters most.',
     images: [
       {
         url: '/og.png',
@@ -29,8 +31,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Friends First — Start with what’s true',
-    description: 'A private relationship reflection about compatibility, values, and what matters most.',
+    title: 'Friends First',
+    description:
+      'A relationship reflection about compatibility, values, and what matters most.',
     images: ['/og.png'],
   },
 };
